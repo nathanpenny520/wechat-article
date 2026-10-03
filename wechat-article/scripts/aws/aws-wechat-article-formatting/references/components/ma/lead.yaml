@@ -1,0 +1,2 @@
+name: lead
+template: <section style="margin:0 0 44px;"><section style="font-family:Menlo, Consolas, 'SF Mono', monospace; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#6B7280; margin-bottom:12px;">Abstract</section><section style="font-size:17px; line-height:1.9; font-weight:500; color:#111827;">{content}</section><section style="height:1px; background:#E5E7EB; margin-top:22px;"></section></section>

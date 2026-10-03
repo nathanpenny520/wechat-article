@@ -1,0 +1,48 @@
+name: 亲和
+displayName: 亲和
+skeleton: kuai
+sort_order: 1
+description: 圆润友好。实心胶囊标题白字居中，圆角 20，灰底圆角引用，高亮笔加粗。像架构师那类账号。
+when_to_use: 教程、职场、面向新手的解释性长文。圆角和胶囊标题让技术话题显得好接近，读者不会一眼觉得难。
+when_not_to_use: '严肃议题、讣闻、财报解读——圆角友好的语气会削弱内容的分量。
+
+  品牌调性偏冷硬或极简的账号：这套是所有模版里最「软」的一档。'
+variables:
+  primary-color: '#6B5B95'
+  text-color: '#1F1F1F'
+  text-muted: '#8A8F98'
+# 顶层 variables 用的是哪一档配色。导出时用户选了别的档，这一行跟着换——
+# 它是「默认」的唯一来源，不再靠 schemes 的下标猜。
+default_scheme: 黛紫
+schemes:
+- name: 黛紫
+  variables:
+    primary-color: '#6B5B95'
+  description: 沉静偏商务，紫里带灰，不显轻浮。默认色。
+- name: 松绿
+  variables:
+    primary-color: '#4E7D6B'
+  description: 克制的植物绿，适合健康、成长、可持续一类的话题。
+- name: 靛蓝
+  variables:
+    primary-color: '#3F5F9E'
+  description: 偏正统的蓝，最保险的一档，企业号和 B 端内容用它不会错。
+styles:
+  p: font-size:16px; line-height:1.95; letter-spacing:0.5px; color:{text-color}; margin:0 0 26px;
+  strong: color:{text-color}; font-weight:700; background:linear-gradient(transparent 74%, {highlight-soft} 74%);
+  em: font-style:normal; color:{primary-ink}; font-weight:600;
+  a: color:{primary-ink}; text-decoration:none; font-weight:500;
+  h1: font-size:24px; font-weight:800; color:{text-color}; line-height:1.4; margin:0 0 28px;
+  h2: font-size:19px; font-weight:700; color:#FFFFFF; line-height:1.5; text-align:center; margin:56px 0 24px; padding:12px 22px; background:{primary-fill}; border-radius:999px; text-wrap:balance;
+  h3: font-size:17px; font-weight:700; color:{primary-ink}; line-height:1.6; margin:36px 0 12px; padding:4px 14px; background:{bg-accent-color}; border-radius:999px; display:inline-block;
+  ul: margin:0 0 26px; padding-left:22px; list-style:disc;
+  ol: margin:0 0 26px; padding-left:22px; list-style:decimal;
+  li: font-size:16px; line-height:1.85; letter-spacing:0.3px; color:{text-color}; margin:0 0 10px;
+  blockquote: color:{text-color}; font-size:16px; line-height:1.85; padding:16px 18px; margin:0 0 28px; background:#F5F6F8; border-left:5px solid {highlight-pen}; border-radius:0 16px 16px 0;
+  figcaption: text-align:center; font-size:13px; color:{text-muted}; margin:10px 0 32px;
+  img: display:block; width:100%; height:auto; aspect-ratio:16/9; object-fit:cover; border-radius:16px;
+  code: font-family:Menlo, Consolas, monospace; font-size:14px; background:#F2F3F5; color:{text-color}; padding:1px 6px; border-radius:6px;
+  table: width:100%; border-collapse:separate; border-spacing:0; margin:0 0 28px; font-size:14.5px; border-radius:12px; overflow:hidden;
+  th: color:#FFFFFF; font-size:13px; font-weight:700; padding:10px 12px; background:{primary-fill};
+  td: 'color:{text-color}; padding:12px; border-bottom:1px solid #EEF0F2;'
+  hr: border:none; height:6px; width:48px; background:{highlight-pen}; border-radius:3px; display:block; margin:52px auto;

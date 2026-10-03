@@ -1,0 +1,52 @@
+name: 书卷
+displayName: 书卷
+skeleton: shu
+sort_order: 3
+description: 纸书感。Georgia 衬线西文，标题居中带上方色条，正文段距收紧，加粗用 900 黑字，配图上下双线。像文化类账号。
+when_to_use: 人文、读书、历史、深度长文。衬线加罗马数字章节，读起来像一本书，适合需要读者慢下来的内容。
+when_not_to_use: '工程文档、数据密集的评测——衬线体在手机上读代码和数字会吃力。
+
+  追求现代感或年轻化的账号：这套的气质是旧的、静的。'
+variables:
+  primary-color: '#9E3D30'
+  text-color: '#1F1F1F'
+  text-muted: '#8A8F98'
+# 顶层 variables 用的是哪一档配色。导出时用户选了别的档，这一行跟着换——
+# 它是「默认」的唯一来源，不再靠 schemes 的下标猜。
+default_scheme: 朱砂
+schemes:
+- name: 朱砂
+  variables:
+    primary-color: '#9E3D30'
+  description: 中式暖红，书画感最强的一档。默认色。
+- name: 黛蓝
+  variables:
+    primary-color: '#2F4A6D'
+  description: 文人青蓝，学术和研究类内容用它更中性。
+- name: 苍绿
+  variables:
+    primary-color: '#3F5E4A'
+  description: 偏灰的苔绿，适合自然、乡土、慢生活。
+styles:
+  p: font-family:Baskerville, Georgia, 'Times New Roman', serif; font-size:15.5px; line-height:1.95; letter-spacing:0.3px; color:#222222; margin:0 0 20px;
+  # 加粗跟主题色走。此前写死纯黑（纸书感），代价是正文一整片黑白，朱砂只出现在
+  # 导语细线、金句卡和文末记号上，加粗完全不承担扫读落点的作用，只剩字重差别。
+  # 衬线正文里的彩色加粗接近古籍朱批，不违和。primary-ink 由 _derive_palette 保证
+  # 在白底上对比度 ≥4.5，换任何配色都不会读不清。
+  strong: color:{primary-ink}; font-weight:900;
+  em: font-style:normal; color:{primary-ink};
+  a: 'color:{text-color}; text-decoration:none; border-bottom:1px solid #B9BEC4;'
+  h1: font-family:Baskerville, Georgia, 'Times New Roman', serif; font-size:24px; font-weight:700; color:#111111; line-height:1.5; text-align:center; margin:0 0 28px;
+  h2: font-family:Baskerville, Georgia, 'Times New Roman', serif; font-size:20px; font-weight:700; color:#111111; line-height:1.55; letter-spacing:1px; text-align:center; margin:14px 0 22px;
+  h3: font-family:Baskerville, Georgia, 'Times New Roman', serif; font-size:16px; font-weight:700; color:{primary-ink}; letter-spacing:1.5px; text-align:center; margin:36px 0 12px;
+  ul: margin:0 0 22px; padding-left:22px; list-style:circle;
+  ol: margin:0 0 22px; padding-left:22px; list-style:decimal;
+  li: font-family:Baskerville, Georgia, 'Times New Roman', serif; font-size:15.5px; line-height:1.85; color:#222222; margin:0 0 8px;
+  blockquote: font-family:Baskerville, Georgia, 'Times New Roman', serif; color:#555555; font-size:15.5px; line-height:1.95; padding:0 22px; margin:8px 0 24px; text-align:center;
+  figcaption: font-family:Baskerville, Georgia, 'Times New Roman', serif; text-align:center; font-size:12.5px; letter-spacing:1px; color:{text-muted}; margin:10px 0 30px;
+  img: display:block; width:100%; height:auto;
+  code: font-family:Menlo, Consolas, monospace; font-size:13.5px; background:#F2F3F5; color:#222222; padding:1px 5px;
+  table: width:100%; border-collapse:collapse; margin:0 0 24px; font-size:14px; font-family:Baskerville, Georgia, 'Times New Roman', serif;
+  th: 'color:#111111; font-size:13px; font-weight:700; text-align:left; padding:8px; border-top:2px solid #111111; border-bottom:1px solid #111111;'
+  td: 'color:#222222; padding:9px 8px; border-bottom:1px solid #E6E8EB;'
+  hr: border:none; height:1px; width:100%; background:#D9DDE1; display:block; margin:44px 0;

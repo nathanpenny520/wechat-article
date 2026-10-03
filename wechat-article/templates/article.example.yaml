@@ -1,0 +1,42 @@
+# 本篇发文元数据（article.yaml）
+#
+# 位置：文章目录内（wxart 的任务目录 {state_home}/runs/<run_id>/）。
+# 由 `wxart article-init <dir> --title … --author … --digest …` 生成或更新，不建议手写。
+# 账号级配置在 config.yaml；密钥在 .env / aws.env；三者不要混用。
+
+# —— 发布必填 ——
+title: ""                 # 标题（微信上限 64 字，建议 ≤30）
+author: ""                # 作者；留空时回退 config.yaml 的 default_author
+digest: ""                # 摘要（微信上限 128 字，建议 80-128 字）
+cover_image: ""           # 封面路径，如 cover.png（未生成时留空会阻断发布）
+content_source: "article.html"   # 正文 HTML 文件名
+
+# —— 封面裁剪框（可选，归一化 X1_Y1_X2_Y2）——
+# 留空时 publish.py 按封面实际尺寸自动居中计算 2.35:1 与 1:1。
+# 手动指定时两者宽高比必须与目标比例一致，否则微信报 53402。
+pic_crop_235_1: ""
+pic_crop_1_1: ""
+
+# —— 互动设置 ——
+need_open_comment: 0
+only_fans_can_comment: 0
+content_source_url: ""
+
+# —— 发布状态（由流程写回，publish.py 不读写）——
+publish_completed: false
+
+# —— 本篇配图 ——
+image_source: "generated"        # generated | user
+image_medium: ""                 # 本篇手绘媒介（白板/便签/终端等宽…）；用于下次避开同一媒介
+
+# —— 本篇预设单选（覆盖 config.yaml 的 default_*/custom_*）——
+# 全局为多元素候选池时必须在这里收敛成单元素列表，否则排版与配图会挑不定。
+default_structure: []
+default_closing_block: []
+default_title_style: []
+default_format_preset: []
+default_format_scheme: []
+default_cover_image_style: []
+# 注意：正文配图形态保持多元素候选池——每个图位各选一个形态。
+default_article_image_style: []
+default_sticker_style: []

@@ -1,0 +1,2 @@
+name: h2-deco
+template: <section style="margin:64px 0 24px; display:flex; align-items:center;"><svg width="56" height="56" viewBox="0 0 56 56" style="display:block; flex:0 0 auto; margin-right:16px;"><rect width="56" height="56" fill="{primary-fill}"/><text x="28" y="38" text-anchor="middle" font-family="Futura, Avenir Next, sans-serif" font-size="26" font-weight="700" fill="#FFFFFF">{n2}</text></svg><section style="flex:1;">{content}</section></section>

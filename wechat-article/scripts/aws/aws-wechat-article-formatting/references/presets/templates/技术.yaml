@@ -1,0 +1,59 @@
+name: 技术
+displayName: 技术
+skeleton: ma
+sort_order: 8
+description: 开发者文档感。等宽只用于小标签与元数据，正文干净，发丝线网格，大量留白，一个冷静的蓝。像 Stripe / Linear 的技术博客。
+when_to_use: 工程实践、技术文档、代码讲解。等宽体小标加发丝线网格，是八套里最像一份文档的一档。
+when_not_to_use: '情绪向和故事向的内容：这套刻意没有情绪。
+
+  完全没有代码和数据的稿子：等宽小标会显得为技术而技术。'
+variables:
+  primary-color: '#2563EB'
+  text-color: '#111827'
+  text-muted: '#6B7280'
+  secondary-color: '#E5E7EB'
+# 顶层 variables 用的是哪一档配色。导出时用户选了别的档，这一行跟着换——
+# 它是「默认」的唯一来源，不再靠 schemes 的下标猜。
+default_scheme: 蓝
+schemes:
+- name: 蓝
+  variables:
+    primary-color: '#2563EB'
+    secondary-color: '#E5E7EB'
+  description: 标准工程蓝，链接和标注都用它。默认色。
+- name: 紫
+  variables:
+    primary-color: '#7C3AED'
+    secondary-color: '#E5E7EB'
+  description: 偏冷的紫，适合 AI 和算法类内容。
+- name: 绿
+  variables:
+    primary-color: '#047857'
+    secondary-color: '#E5E7EB'
+  description: 深松绿，适合运维、数据库、稳定性一类话题。
+styles:
+  p: font-size:16px; line-height:1.95; letter-spacing:0.2px; color:#111827; margin:0 0 26px; font-variant-numeric:tabular-nums;
+  # 加粗跟配色走。此前写死成灰码片（#111827 字 + #F6F8FA 底），三套配色下长得
+  # 一模一样——而加粗是正文里最密集的一层，用户换了配色最先该看见变化的就是它。
+  # 八套模版里只有这一套的 strong 不跟色，是个孤例，不是设计取向。
+  #
+  # 去掉码片后加粗与链接都只剩「彩字」，读者分不清哪个能点。所以加粗靠字重
+  # （800）拉开，链接补一条下划线——另外五套模版的链接本来就带线。
+  strong: color:{primary-ink}; font-weight:800;
+  em: font-style:normal; color:{primary-ink}; font-weight:600;
+  a: color:{primary-ink}; text-decoration:none; border-bottom:1px solid {primary-ink};
+  h1: font-size:25px; font-weight:700; color:#111827; line-height:1.4; letter-spacing:-0.3px; margin:0 0 28px;
+  h2: font-size:20px; font-weight:700; color:#111827; line-height:1.5; letter-spacing:-0.2px; margin:8px 0 20px;
+  h3: font-size:16px; font-weight:700; color:#111827; margin:36px 0 12px;
+  ul: margin:0 0 26px; padding-left:22px; list-style:square;
+  ol: margin:0 0 26px; padding-left:22px; list-style:decimal;
+  li: font-size:16px; line-height:1.85; color:#111827; margin:0 0 10px; font-variant-numeric:tabular-nums;
+  blockquote: color:#6B7280; font-size:16px; line-height:1.9; padding:2px 0 2px 18px; margin:0 0 28px; border-left:2px solid {primary-ink};
+  figcaption: font-family:Menlo, Consolas, 'SF Mono', monospace; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#6B7280; margin:10px 0 34px;
+  img: 'display:block; width:100%; height:auto; border:1px solid #E5E7EB; border-radius:6px;'
+  code: font-family:Menlo, Consolas, 'SF Mono', monospace; font-size:14px; background:#F6F8FA; color:#111827; padding:1px 6px; border-radius:4px;
+  pre: font-family:Menlo, Consolas, 'SF Mono', monospace; background:#111827; color:#E2E8F0; font-size:13px; line-height:1.8; padding:18px 16px; margin:0 0 28px; border-radius:8px;
+  table: width:100%; border-collapse:collapse; margin:0 0 28px; font-size:14.5px; font-variant-numeric:tabular-nums;
+  th: 'font-family:Menlo, Consolas, ''SF Mono'', monospace; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#6B7280; font-weight:600; text-align:left; padding:10px 8px; border-bottom:1px solid #111827;'
+  td: 'color:#111827; padding:11px 8px; border-bottom:1px solid #E5E7EB;'
+  hr: border:none; height:1px; background:#E5E7EB; margin:52px 0;

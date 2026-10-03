@@ -1,0 +1,48 @@
+name: 资讯
+displayName: 资讯
+skeleton: bao
+sort_order: 6
+description: 媒体号语法。辨识度在字不在线：17px 大字、0.8px 松字距、整句彩色粗体、灰底圆角块；全篇只有发丝线。像量子位、新智元。
+when_to_use: 快讯、评测、行业观察。全篇只有发丝线，靠大字和松字距撑住节奏，信息密度高也不显吵。
+when_not_to_use: '抒情散文、个人随笔——这套的语法是新闻体，读起来偏硬。
+
+  段落很短的碎片化内容：大字加松字距会让篇幅显得空。'
+variables:
+  primary-color: '#1F6F5F'
+  text-color: '#111111'
+  text-muted: '#8A8F98'
+# 顶层 variables 用的是哪一档配色。导出时用户选了别的档，这一行跟着换——
+# 它是「默认」的唯一来源，不再靠 schemes 的下标猜。
+default_scheme: 墨绿
+schemes:
+- name: 墨绿
+  variables:
+    primary-color: '#1F6F5F'
+  description: 冷静克制的深绿，科技和财经资讯都压得住。默认色。
+- name: 绛红
+  variables:
+    primary-color: '#9B2D30'
+  description: 偏暗的正红，适合观点评论和需要一点火气的稿子。
+- name: 藏青
+  variables:
+    primary-color: '#24406B'
+  description: 最接近传统媒体的一档，严肃、可信、不抢内容。
+styles:
+  p: font-size:17px; line-height:2.0; letter-spacing:0.8px; color:{text-color}; margin:0 0 30px; font-variant-numeric:tabular-nums;
+  strong: color:{primary-ink}; font-weight:700;
+  em: font-style:normal; font-weight:700; color:{text-color};
+  a: color:{primary-ink}; text-decoration:none; border-bottom:1px solid {primary-ink};
+  h1: font-size:26px; font-weight:800; color:{text-color}; line-height:1.4; letter-spacing:0.5px; margin:0 0 28px;
+  h2: 'font-size:21px; font-weight:800; color:{text-color}; line-height:1.5; letter-spacing:0.8px; margin:60px 0 24px; padding-bottom:14px; border-bottom:1px solid #E3E6EA;'
+  h3: font-size:18px; font-weight:800; color:{text-color}; line-height:1.6; letter-spacing:0.5px; margin:40px 0 14px;
+  ul: margin:0 0 30px; padding-left:22px; list-style:disc;
+  ol: margin:0 0 30px; padding-left:22px; list-style:decimal;
+  li: font-size:17px; line-height:1.9; letter-spacing:0.6px; color:{text-color}; margin:0 0 12px; font-variant-numeric:tabular-nums;
+  blockquote: color:#555555; font-size:16.5px; line-height:1.95; letter-spacing:0.6px; padding:20px 22px; margin:0 0 30px; background:#F4F5F7; border-radius:12px;
+  figcaption: font-size:13px; letter-spacing:0.5px; color:{text-muted}; margin:10px 0 34px;
+  img: display:block; width:100%; height:auto;
+  code: font-family:Menlo, Consolas, monospace; font-size:14.5px; background:#F4F5F7; color:{text-color}; padding:1px 6px; border-radius:4px;
+  table: width:100%; border-collapse:collapse; margin:0 0 30px; font-size:15px; font-variant-numeric:tabular-nums;
+  th: 'color:{text-muted}; font-size:13px; font-weight:700; letter-spacing:1px; text-align:left; padding:10px 8px; border-bottom:1px solid #C9CED3;'
+  td: 'color:{text-color}; padding:12px 8px; border-bottom:1px solid #E3E6EA; font-variant-numeric:tabular-nums;'
+  hr: border:none; height:1px; background:#E3E6EA; margin:48px 0;

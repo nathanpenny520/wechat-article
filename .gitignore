@@ -1,0 +1,26 @@
+# 运行时产物
+.aws-article
+.wxarticle
+__pycache__/
+*.py[cod]
+*.log
+.venv-verify/
+.sandbox-state/
+.sandbox-ws/
+
+# 本地配置与状态（状态目录默认在 ~/.wxarticle，这里只兜底被误放进仓库的情况）
+config.yaml
+.env
+aws.env
+aws.env.bak.*
+
+# 编辑器与系统
+.DS_Store
+.idea/
+.vscode/
+
+# 本次写作的暂存目录
+.staging*/
+
+# 两个上游开源项目（各自的独立 Git 仓库，作为来源保留在本地，不重复入库）
+reference/

@@ -1,0 +1,2 @@
+name: li-label
+template: <li style="margin:0 0 14px;"><span style="font-weight:600; color:{text-color};">{c0}</span><br><span style="font-size:15px; line-height:1.85; color:#555555;">{c1}</span></li>
