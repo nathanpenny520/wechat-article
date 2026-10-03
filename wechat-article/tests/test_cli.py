@@ -132,6 +132,22 @@ class CliTestCase(CliHarness, unittest.TestCase):
         self.assertIn("config", names)
         self.assertIn("publish_method", names)
 
+    def test_preview_page_wraps_fragments_at_phone_width(self) -> None:
+        """aws 引擎产物是裸 <section>，预览页要把它装进 375px 手机卡才看得出观感。"""
+        frag = self._write("frag.html", '<section style="color:#111"><p>正文一段</p></section>')
+        out = self.workspace / "pv.html"
+        res = self.run_cli("preview-page", str(frag), "-o", str(out), "--title", "测试")
+        self.assertEqual(res.returncode, 0, res.stderr)
+        page = out.read_text(encoding="utf-8")
+        self.assertIn("width:375px", page)
+        self.assertIn("正文一段", page)
+        self.assertIn("frag.html", page, "预览卡应标注来源文件")
+
+    def test_preview_page_reports_missing_input(self) -> None:
+        res = self.run_cli("preview-page", str(self.workspace / "nope.html"), "-o", str(self.workspace / "o.html"))
+        self.assertEqual(res.returncode, 2)
+        self.assertIn("文件不存在", res.stderr)
+
     @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
     def test_cover_command_makes_235_cover(self) -> None:
         """无生图模型时的本地封面：必须是 2.35:1 且长边 ≥900。"""

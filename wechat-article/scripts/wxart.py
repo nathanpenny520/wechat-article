@@ -88,6 +88,7 @@ COMMANDS: dict[str, tuple[str, str, str]] = {
     # —— 安全栅栏 ——
     "guard": ("n", "", "容器相容性检查与 HTML 微信兼容门禁（两个引擎通用）"),
     "cover": ("n", "", "没有生图模型时，本地合成「纯色大字」封面（确定性，零 API）"),
+    "preview-page": ("n", "", "把排版产物放进 375px 手机宽度预览页，并排对比多个主题"),
     # —— 上游自检 ——
     "validate-env": ("a", "aws/aws-wechat-article-main/scripts/validate_env.py", "aws 侧配置校验"),
 }
@@ -96,7 +97,7 @@ GROUPS: list[tuple[str, list[str]]] = [
     ("环境与工作区", ["doctor", "init", "env", "home", "migrate"]),
     ("选题", ["hotspots", "search-articles", "seo"]),
     ("写作", ["draft", "llm-write", "score", "content-eval", "sources"]),
-    ("排版", ["format", "preview", "themes", "gallery", "validate"]),
+    ("排版", ["format", "preview", "preview-page", "themes", "gallery", "validate"]),
     ("配图", ["image", "cover", "image-post", "image-prepare", "image-check"]),
     ("发布", ["publish", "article-init", "getdraft"]),
     ("学习飞轮", ["learn-edits", "learn-theme", "exemplar", "fetch-article", "build-playbook"]),
@@ -570,6 +571,12 @@ def cmd_guard(args: list[str]) -> int:
     return wxguard.main(args)
 
 
+def cmd_preview_page(args: list[str]) -> int:
+    import make_preview
+
+    return make_preview.main(list(args))
+
+
 def cmd_cover(args: list[str]) -> int:
     """本地合成封面：没有生图模型时的确定性方案（形态「纯色大字」）。"""
     import make_cover
@@ -624,6 +631,7 @@ NATIVE = {
     "migrate": cmd_migrate,
     "guard": cmd_guard,
     "cover": cmd_cover,
+    "preview-page": cmd_preview_page,
 }
 
 
