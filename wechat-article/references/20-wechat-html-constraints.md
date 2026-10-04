@@ -8,6 +8,16 @@
 
 `<style>` 块、外部 `<link>` 样式表一律被剥离。样式只能写在元素的 `style` 属性里。
 
+**2026-10-04 第四批探针（API 路径，实测）**：`<style>` 整块被删——连同里面的类选择器、
+`::before` 规则、`@media` 规则、`#id` 规则一起消失（详见第 3 节）。这条铁律在 **`draft/add`
+路径**下同样成立，不再只是粘贴路径的经验。
+
+**同批探针 + 真机核对改准了两条旧口径**（见第 3 节、第 7 节、第 15 节）：
+
+- `class` 属性**被保留**，不是「被剥离」——只是没有规则可挂，等于惰性（真机确认：P2 段呈普通黑色）；
+- `<div>` 在回读里**原样保留、内联样式也在**，但**手机端那条 `color` 不生效**（真机实测：应为紫色，实际黑色）。
+  「应使用 `<section>`」这条规矩继续成立，理由从「会被编辑器改写」升级为「**客户端不认它的样式**」。
+
 | 推论 | 原因 | 后果 |
 |---|---|---|
 | 没有伪元素 | `::before` / `::after` 需要 CSS 规则 | 标题前的小图标、引用块的大引号，必须**真的插一个元素**进 HTML |
@@ -95,6 +105,63 @@ linear-gradient 渐变色条     transform:rotate
 **本地位图 → `media/uploadimg` 换 `mmbiz` 链接 → 写进 `background-image`**。
 `wxart deco` 就是这条链路的实现（用法见 [05-format.md](05-format.md) 第 7 节）。
 
+### 第四批探针（2026-10-04 · API 路径保真度，8 个构造 · draft/add → draft/get）
+
+前三批测的是「能不能用」，这一批专门测**「class 型样式框架能不能用」**——
+`<style>` / `class` / `::before` / `@media` 这四项此前只在粘贴路径下被验证过，API 路径是空白。
+原始 payload 与回读件见 [`docs/probes/2026-10-04-api-fidelity/`](../../docs/probes/2026-10-04-api-fidelity/README.md)。
+
+| 构造 | 回读（draft/get） | 手机渲染（同日核对） |
+|---|---|---|
+| 内联样式（对照组） | **逐字节保留** | ✅ 红字 + 浅灰底正常 |
+| **`<style>` 块**（类选择器 + `::before` + `@media` + `#id` 四条规则） | **整块被删** | — |
+| `::before` 伪元素 | 规则不存在 | ✅ 未出现 `PSEUDO-OK` |
+| `@media` 查询 | 规则不存在 | ✅ 未生效 |
+| `class` 属性 | **保留**（旧说法「被剥离」不准确） | ✅ 惰性：该段仍是普通黑色，非蓝色粗体 |
+| `id` 属性 | 被删 | — |
+| `<div>` + 内联 `color` | **原样保留、样式俱在** | ❌ **`color` 不生效，文字是普通黑色**（同稿 `<section>`+`<p>` 的红字正常） |
+| `data-no-dark` / `data-ignore-dm` / `data-ignore-width` / `data-role` | **全部保留** | ✅ 不影响观感 |
+| `nodeleaf` | 保留，被规范成 `nodeleaf="nodeleaf"` | ❌ **容器内的 `<p>` 整段消失**（官方语义：只允许单个 img / 视频 / 官方组件） |
+| 12 层同名无样式嵌套 | 未触发精简 | ✅ NEST-1…NEST-12 全部上屏 |
+| `<img>`（后加上传的图床图） | `src`→`data-src`、`/0`→`/640` | ✅ 正常显示 |
+
+**真机那一列才是这一批最有价值的产出**：`<div>` 与 `nodeleaf` 两行都是「回读全绿、手机上出问题」，
+回读、`wxart preview`、桌面浏览器**三个都测不出来**（第 7 节）。构造与逐条判据见
+[探针目录的 reallive-results.md](../../docs/probes/2026-10-04-api-fidelity/reallive-results.md)。
+
+**口径更正（已同步到第 1 节、第 7 节、第 15 节）**：`class` 不是被剥离而是被保留（但无用）；
+`<div>` 不是「被编辑器改写」而是「**客户端不认它的样式**」——两条旧说法的结论方向都没错，
+错的是机制描述。
+
+**一条立即生效的结论**：WeUI 这类 **class + `<style>` + 伪元素**的样式框架，
+在 API 路径下同样没有生路（载体被删），所以「整体融合 WeUI」这条路彻底关死；
+能取的只有它的图标字形、色板与结构范式。
+
+**还没测的**：暗色模式下的表现（对照组、`data-no-dark` 段）——截图是浅色模式，这两条留待下一轮。
+
+### 第五批探针（2026-10-04 · 暗色算法与嵌套边界）
+
+第四批测「class 型框架能不能用」，这一批测两件只有官方条文、没有实测的事。
+原始 payload 与回读件见 [`docs/probes/2026-10-04-darkmode-nesting/`](../../docs/probes/2026-10-04-darkmode-nesting/README.md)。
+
+| 构造 | 回读结果 | 含义 |
+|---|---|---|
+| **14 层**「同 tagName + 同样式 + **单子节点**」链 | **未被精简**（`<section>` 一个不少） | 官方的「>10 层自动精简」是**编辑器**行为，`draft/add` 直传不经过它 |
+| 14 层、每层 2 个子节点（对照） | 14 个标记全在 | 与官方条文一致（有兄弟节点不触发） |
+| 9 层单子节点链（阈值下对照） | 原样 | — |
+| **`background-image:url('…')`（带引号）** | **整个 `<section>` 被拆掉**（文字被提出、花纹消失） | 见下 |
+| `data-no-dark` / `data-ignore-dm` | 保留（属性被写成 `="自身"`） | 钩子可用 |
+| SVG `fill="#000000"` / `fill="currentColor"` | 均保留 | 渲染差异只能真机看 |
+
+**`url()` 的引号会连元素一起拆掉。** 这一条做了五次对照：引号 / 无引号、http / https、
+有 / 无 `background-repeat`+`background-size`、section 内有无内容——
+**只有不带引号的 `url(http://…)` 活下来**，其余四种构造的 `<section>` 全部消失。
+所以第 12 节那句「`url()` 里地址不能加引号」不是 SVG 独有的坑，是**所有 `url()` 的通用规则**；
+`wxart deco` 写的 `url({url})` 不带引号，因此纸纹花边安全，另补了 `quoted_url` 规则挡住手写引号。
+
+**这一批的暗色结论仍待真机**：算法怎么平衡对比度、渐变会不会被压成纯色，条款在
+`plugin_spec` 第 4.1 节，实测靠探针目录 README 里那张对照表（浅色 / 深色各截一次图）。
+
 ## 4. 中文字体指定了也没用
 
 **手机微信里，`font-family` 对中文完全无效。**（2026-09-06 探针稿，iPhone 微信实测）
@@ -181,8 +248,15 @@ Didot 可做高对比衬线 masthead。**含数字的字体名必须加引号**�
 |---|---|
 | `filter:grayscale()` / `filter:blur()` | 属性原样在 HTML 里，图片仍是彩色/清晰。**灰度和模糊做不了**，要黑白图就传黑白图 |
 | `float:left` | 图在左，但文字不绕图、从图下方开始。**文字绕图做不了** |
+| **`<div>` 上的内联样式** | 2026-10-04 真机实测：回读里 `<div style="color:rgb(120,0,160)">` 原文俱在，手机上文字是**普通黑色**。同一稿里 `<section>` + `<p>` 的红色内联样式正常渲染——差别只在标签。**正文容器一律用 `<section>`** |
+| **`nodeleaf` 容器里的块级子元素** | 同一稿：`<section nodeleaf>` 里放了一个 `<p>`，回读里在、**手机上整段消失**。官方规范说该容器只允许「单个图片 / 视频 / 官方组件」——客户端真的照做了 |
 
-「HTML 里活着 ≠ 渲得出来」。第一次证实是中文字体，第二次是这两条。
+「HTML 里活着 ≠ 渲得出来」。第一次证实是中文字体，第二次是 `filter` / `float`，
+第三次是 `<div>` 与 `nodeleaf`（2026-10-04 真机，回读件与截图对照，见
+[探针目录](../../docs/probes/2026-10-04-api-fidelity/reallive-results.md)）。
+
+**这一类只能靠真机发现**：`draft/get` 回读、`wxart preview`、桌面浏览器三者都会把
+`<div>` 的紫色和那个 `<p>` 正常画出来。**回读通过的构造，仍然可能整段不上屏。**
 
 ## 8. 满版贴边做不了
 
@@ -264,7 +338,9 @@ letter-spacing:3px; font-weight:500     疏排，把字撑开而不加重
 
 - **不能有 `id`**（会被删，导致内部 `url(#…)` 引用全断）
 - 不能含 `<style>` `<script>` `<a>`
-- `background` 的 `url()` 里**地址不能加引号**，单双引号都会被过滤
+- `background` 的 `url()` 里**地址不能加引号**，单双引号都会被过滤。
+  **2026-10-04 第五批探针把后果测清了**：带引号不止删属性，而是把**整个 `<section>` 拆掉**
+  （文字被提出来、花纹消失）。这条对所有 `url()` 通用，已加进 `wxart validate`（`quoted_url`）
 - `<image>` 标签的图片**必须是微信素材库地址**，外链和 Base64 都不行
 - iOS 上 `transform-origin` 不可靠
 
@@ -291,6 +367,11 @@ letter-spacing:3px; font-weight:500     疏排，把字撑开而不加重
 可用  stroke-dasharray  ⭐ 画弧、画进度环、画长短不一的断线，全靠它
 可用  stroke-linecap / linejoin / transform（iOS 上 transform-origin 不可靠）
 ```
+
+**填色别写死黑/白**：官方暗色算法**不处理 SVG**（`plugin_spec` 第 4.4 节），所以写死 `black`
+的 SVG 在深色模式下会糊在深底上。官方给的办法是把颜色交给外层——
+`stroke="currentColor" fill="currentColor"`，在容器上写 `color:`，或给 SVG 加底色。
+这正好和本手册的做法同向：SVG 的颜色本来就该从主题变量注入，不要硬编码。
 
 ### 三层用法
 
@@ -371,25 +452,28 @@ HTML 结构），而不只是样式串。
 
 ## 14. 还没测的
 
-1. `position` / `id` 的实际渲染表现（关系到能否做叠层效果，需单独探针）
-2. 嵌套超过三层的 `<section>`
-3. 微信客户端 webview 与桌面浏览器的其它渲染差异（中文字体一项已实测，见第 4 节）
+1. **嵌套 10 层边界**（官方条文：同 tagName + 同样式 + **仅含单个子节点**的连续链路 >10 层会被精简）。
+   第四批探针的构造每层都带文本，不满足前提，所以**没触发不等于没有**——要测就用真正的单子节点链。
+2. `position` 的渲染表现（`id` 已在第四批探针里确认被删，`position` 声明仍只测到「整条被删」）。
+3. 微信客户端 webview 与桌面浏览器的其它渲染差异（中文字体一项已实测，见第 4 节）。
+4. 官方暗色算法的实际转换结果（对比度平衡到什么程度、渐变 mix 成哪个色）——官方只给了示例图，
+   要精确就得真机逐稿比对。
 
 **微信偶发清空 `style=""`**：非确定性。同样内容重传通常就好。**不要据此反推某个标签或属性不被支持**——先重传一次再判定。
 
 ## 15. validate 规则表
 
-`wxart validate <article.html>` —— 14 条 ERROR + 3 条 WARN。
+`wxart validate <article.html>` —— 16 条 ERROR + 4 条 WARN。
 
-**ERROR（14 条）**
+**ERROR（16 条）**
 
 | 规则名 | 正则语义 | 说明 |
 |---|---|---|
 | `style_tag` | `<style[\s>]` | `<style>` 会被过滤，样式必须内联 |
 | `script_tag` | `<script[\s>]` | 会被过滤 |
 | `link_tag` | `<link[\s>]` | 外部 `<link>`（CSS/字体）会被过滤 |
-| `div_tag` | `</?div[\s>]` | `<div>` 会被微信编辑器改写，应使用 `<section>` |
-| `class_attr` | `<[^>]+\sclass\s*=` | `class` 会被剥离 |
+| `div_tag` | `</?div[\s>]` | `<div>` 应换成 `<section>`：回读里它活着，但**手机端不认它的内联样式**（2026-10-04 真机，见第 7 节） |
+| `class_attr` | `<[^>]+\sclass\s*=` | `class` 没有规则可挂（`<style>` 被删），保留与否都无用（第 3 节第四批探针） |
 | `id_attr` | `<[^>]+\sid\s*=` | `id` 会被剥离 |
 | `position_unsupported` | `position\s*:\s*(fixed\|absolute\|sticky)` | 不生效 |
 | `float_css` | `float\s*:\s*(left\|right)` | 布局不可靠，应使用 flex |
@@ -399,14 +483,17 @@ HTML 结构），而不只是样式串。
 | `display_grid` | `display\s*:\s*grid` | 不支持，应使用 flex |
 | `css_var` | `var\s*\(\s*--` | CSS 变量不支持，颜色需写实际值 |
 | `external_font` | `url\s*\(['\"]?https?://[^)]*\.(?:woff2?\|ttf\|otf\|eot)` | 外部字体文件不会被加载 |
+| `nodeleaf_content` | `<section nodeleaf>` 内含块级元素，或顶层子元素 > 1 | 官方只允许单个图片/视频/官方组件；**真机实测块级内容整段消失**（第 7 节） |
+| `quoted_url` | `url\s*\(\s*['\"]` | `url('…')` 会让**整个元素被拆掉**，不只是属性被删（第 3 节第五批探针） |
 
-**WARN（3 条）**
+**WARN（4 条）**
 
 | 规则名 | 正则/条件 | 说明 |
 |---|---|---|
 | `iframe_tag` | `<iframe[\s>]` | 仅白名单来源（腾讯视频等）可用 |
 | `external_link` | `<a[^>]+href\s*=\s*["\']https?://(?!mp\.weixin\.qq\.com)` | 未认证号会被过滤（已转脚注的正常产物不触发） |
 | `too_many_images` | 结构性检查：`<img>` 计数 > 10 | 超过正文上限 10 张，发布时会移除末尾多余 |
+| `nodeleaf_empty` | 结构性检查：`nodeleaf` 容器内无元素 | 该容器只用来承载单个图片/视频/官方组件 |
 
 传入完整 HTML 页面时**只校验 `<body>` 内容**——预览包装的 `<head>` / `<style>` 不参与粘贴与发布。
 
@@ -418,6 +505,12 @@ HTML 结构），而不只是样式串。
 | `wxart format` / `preview` / `publish` | 都不阻断；`preview` 只把命中项以 `⚠ [LEVEL] rule` 打到 stderr |
 
 **结论：`format` / `preview` / `publish` 都不会自动阻断。门禁必须显式跑 `wxart validate` 并要求退出码 0。**
+
+**两条规则的理由（2026-10-04 探针 + 真机校正）**：都不该用旧说法解释。
+`class_attr` 的真正理由是「`<style>` 被删、class 无规则可挂」（属性本身在 API 路径其实被保留）；
+`div_tag` 的真正理由是「**客户端不渲染 `<div>` 的内联样式**」——回读里它完好无损，
+是**手机**把它废掉的（第 7 节）。两条规则都继续留在门禁里。
+另外 §3 探针还发现一条**尚无规则**的红线：`nodeleaf` 容器里放块级子元素，内容会在手机上消失。
 
 ## 16. 转换器自动修复清单（wx 引擎）
 
@@ -440,3 +533,89 @@ class / id 残留       全部清除（codehilite、fenced code）
 ```
 
 发布前 Metadata 门禁另有一条：`article.yaml` 须含 `title` / `author` / `digest` / `content_source`。
+
+## 17. 官方规范：条文在哪，和本手册怎么对
+
+前 16 节是**实测**攒出来的。2026-10-04 补上了另一层：**微信官方自己把编辑器的 HTML 规范写出来了**，
+还开源了配套校验器。两层互补——官方条文管「规定是什么」，实测管「实际删不删」。
+
+| 层 | 出处 | 覆盖什么 |
+|---|---|---|
+| 官方规范 | [plugin_spec](https://developers.weixin.qq.com/doc/subscription/guide/product/plugin_spec.html)（编辑器插件开发规范） | CSS 属性、文章结构、字体、Dark Mode 四类，附错误示例与截图 |
+| 官方校验器 | [`wechatjs/verify-article-structure-spec`](https://github.com/wechatjs/verify-article-structure-spec)（MIT） | 19 条规则的**官方实现**；`check` 用 puppeteer 真实浏览器跑布局测量，`dedupe` 清理冗余嵌套 |
+| 本地镜像 | `wxart docs`（全文见状态目录 `~/.wxarticle/wechat-docs/`） | `plugin_spec` 已抓在本地，离线可查 |
+
+### 17.1 官方条文 vs 本手册
+
+| 官方条文 | 本手册对应 | 判定 |
+|---|---|---|
+| 不建议设置任何 `font-family` | 第 4 节（iPhone 实测中文无效） | ✅ 官方背书，实测更早更细 |
+| 嵌套链路（同 tagName + 同样式 + 单子节点）≤ 10 层，超了编辑器自动精简 | 第 3 节第五批探针 | ✅ 实测：**API 直传不精简**（14 层原样进草稿箱）。「自动精简」是**编辑器**行为，官方校验器的 `nest-level` 会提示但不阻断 |
+| `<span leaf>` 只能放行内元素 | 第 16 节（粘贴加固 `span leaf=""`） | 🆕 补上「只能放行内」这条硬约束 |
+| `<section nodeleaf>` 只能包官方组件或 `<img>` | 无 | 🆕 官方语义，**客户端会强制执行**：容器里放 `<p>`，回读在、手机上整段消失（真机实测） |
+| 正文容器用官方认可的标签 | 第 1、7 节（`<div>` 应换 `<section>`） | ✅ 官方虽未禁 `<div>`，但真机实测 `<div>` 的内联样式不生效 |
+| 字体用默认栈；字重是层级手段 | 第 4、5 节 | ✅ 一致 |
+| `line-height` 小于字号 + 多行 = 叠字；图片无缝拼接/单行豁免 | 第 9 节（行盒别被撑高） | 🆕 官方给了豁免边界 |
+| `height:0` 编辑器里看得见、**移动端不可见** | 第 7 节（HTML 活着但手机不渲染） | ✅ 官方用自己的例子证实了这一整类陷阱 |
+| 编辑器 ≠ 移动端 ≠ PC（`width`、`text-align:start`、`height:0` 都有双端对照图） | 第 7、8 节 | ✅ 第 7 节的判断被官方文档坐实 |
+| 固定宽度 = 三类违规（居中不一致 / 溢出 / 跨屏宽度差异） | 第 8 节（100vw 被压回、calc 被删） | ⚠ 与「单位优先 px」的表述有张力，见 17.3 |
+| `text-align: start` / `end` 跨端不一致 | 无 | 🆕 用 `left` / `right` / `center` |
+| `<pre>` 包普通段落文本 = 违规 | 无 | 🆕 我们只用于代码块，合规 |
+| `opacity:0` 的 `<img>` + SVG 背景叠放 → 发布后无法在后台换图 | 无 | 🆕 别用这种叠图法 |
+| 图片承载纯文本 | 第 12 节（SVG 三层用法） | ✅ 一致：文字就写成文字 |
+| **SVG 建议 `stroke="currentColor" fill="currentColor"`** | 第 12 节 | 🆕 暗色算法**不处理 SVG**，写死黑/白的 SVG 在暗色下会失配；用 `currentColor` + 外层 `color:` 或加底色规避 |
+| 暗色是**算法转换**（对比度平衡、渐变 mix 成纯色），不是读属性 | 第 16 节（注入 `data-darkmode-*`） | 🆕 两套机制并存；官方另有 `data-no-dark` / `data-ignore-dm` |
+| 透明底 `background-image` 有**补色机制**；图上文字在暗色下保留浅色原色 | 第 3 节第三批探针（`wxart deco` 纸纹花边） | 🆕 直接影响 deco 的暗色表现；另注意 `url()` **不能带引号**，否则整个元素被拆（`quoted_url` 规则） |
+| 不建议用 `!important` | 无 | 🆕 会让平台公共样式失效 |
+
+### 17.2 第二道门禁：官方校验器
+
+`wxart validate` 是 16 条**正则 + 2 条结构检查**；官方那套跑**真实浏览器布局测量**，管的是正则测不出来的东西。
+两者互补，都该跑：
+
+```bash
+wxart validate article.html                              # 第一道：形态（退出码 0 才继续）
+python3 scripts/official_check.py article.html           # 第二道：官方规范（0 通过 / 1 违规 / 2 异常）
+python3 scripts/official_check.py article.html --json    # 结构化输出
+python3 scripts/official_check.py article.html --strict  # 缺依赖时也报错（CI 用）
+```
+
+三条必须知道的：
+
+1. **它不阻断流水线。** 官方那套要 node + npm + 一个 Chromium，本 skill 运行时绝不背这个包袱：
+   脚本「有就跑、没有就明确 SKIP」，缺依赖时退出码仍是 0。装法见它的 `--help` 与
+   [`docs/probes/2026-10-04-api-fidelity/README.md`](../../docs/probes/2026-10-04-api-fidelity/README.md)。
+2. **必须喂 body-only HTML。** 整页输入会把预览包装的 `<head><style>` 也算进去，报出假 `width`
+   违规；`official_check.py` 已自动抽 `<body>` 并去掉 `<style>`/`<script>`，与 `wxart validate` 同口径。
+3. **`font-family` 规则在 CLI 路径下实测不触发。** 用 `Georgia` / `Didot` / 等宽三种构造验证均无输出，
+   别指望它替 `wxart validate` 拦自定义字体——那条归第一道门禁。
+
+### 17.3 官方校验器跑我们现有产物的一次实测
+
+拿两份真实产物试的（原始输出见探针目录 `official-check-body-*.txt`）：
+
+| 产物 | 结果 |
+|---|---|
+| `3cda93`（清新主题，无装饰） | **0 违规**，`isValid: true` |
+| `ee72a7`（硬朗主题 + 渐变装饰线） | **1 类 / 7 个节点**：`darkmode-no-gradient`，全部落在 `<h2>` |
+
+那 7 个 `<h2>` 用的是**渐变画的下划线**（`linear-gradient` + `background-size:100% 2px` +
+`background-position:0 100%`），不是文字底色。官方规则不区分用途，只要文本节点上有渐变就报——
+这是**规则本身的粗糙处，不是我们的 bug**。但它指向一个真实后果：
+按官方 4.1.2，算法会先把渐变 mix 成纯色再转换，**这条装饰线在暗色下会被压成单色**。
+
+三种处理，按代价从小到大：
+
+1. **不管**——它是提示级，且视觉上只是「下划线在暗色下变纯色」，不破版；
+2. **标豁免**——给这类纯装饰元素加 `data-ignore-dm="text-bg-gradient"`，让校验器闭嘴
+   （第四批探针已确认该属性在 API 路径保留）；
+3. **换成 SVG / 纯色块**——装饰线本来就在 SVG 的能力范围内（第 12 节），且不会有暗色退化。
+
+### 17.4 官方 19 条规则清单（用于对照第一道门禁）
+
+`font-family` · `opacity` · `caret-color` · `line-height` · `line-height-overlapping` ·
+`text-align` · `height` · `height-nodisplay` · `width`（+ 居中不一致 / 溢出 / 跨屏差异三条细则）·
+`animate-begin` · `nest-level` · `redundant-node` · `nodeleaf` · `span-leaf` · `pre` ·
+`darkmode-low-contrast` · `darkmode-no-gradient` · `darkmode-whitelist`（用了 `data-no-dark` 时提示）
+
+其中 `width` / `height` / `line-height` / `redundant-node` 必须真实布局测量，正是第一道门禁的盲区。

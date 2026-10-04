@@ -123,7 +123,7 @@ wxart validate <html> [--json]
 
 **适用场景：只用于预览/粘贴路径。** API 发布草稿箱不经过编辑器改写，`article.html` 不需要 leaf 包裹——`--no-paste-safe` 就是给这条路径用的。
 
-### `wxart validate`：14 条 ERROR + 3 条 WARN
+### `wxart validate`：16 条 ERROR + 4 条 WARN
 
 ```bash
 wxart validate {run_dir}/article.html
@@ -132,15 +132,15 @@ wxart validate {run_dir}/article.html --json
 
 只校验 `<body>` 内的内容（有 `<body>` 就取它）。
 
-**14 条 ERROR**（微信会过滤该写法或样式失效）——左列是规则名，括号内是触发正则语义：
+**16 条 ERROR**（微信会过滤该写法或样式失效）——左列是规则名，括号内是触发正则语义：
 
 | 规则（触发条件） | 说明 |
 |---|---|
 | `style_tag`（`<style` + 空白/`>`） | `<style>` 会被过滤，样式必须内联 |
 | `script_tag`（`<script` + 空白/`>`） | `<script>` 会被过滤 |
 | `link_tag`（`<link` + 空白/`>`） | 外部 CSS / 字体 `<link>` 会被过滤 |
-| `div_tag`（`</?div` + 空白/`>`） | `<div>` 会被改写，应用 `<section>` |
-| `class_attr`（标签内 ` class=`） | class 会被剥离，样式必须内联 |
+| `div_tag`（`</?div` + 空白/`>`） | 客户端不渲染 `<div>` 的内联样式（真机实测），应用 `<section>` |
+| `class_attr`（标签内 ` class=`） | class 无规则可挂（`<style>` 会被删），样式必须内联 |
 | `id_attr`（标签内 ` id=`） | id 会被剥离 |
 | `position_unsupported`（`position:` 为 `fixed`/`absolute`/`sticky`） | 这三种定位在微信正文不生效 |
 | `float_css`（`float:` 为 `left`/`right`） | float 布局不可靠，应用 flex |
@@ -150,14 +150,17 @@ wxart validate {run_dir}/article.html --json
 | `display_grid`（`display:` 为 `grid`） | 不被支持，应用 flex |
 | `css_var`（`var(` + `--`） | CSS 变量不被支持，颜色要写实际值 |
 | `external_font`（`url('…http(s)://….woff2/woff/ttf/otf/eot`） | 外部字体文件不会被加载 |
+| `nodeleaf_content`（`<section nodeleaf>` 内出现块级元素，或顶层子元素 > 1） | 官方只允许单个图片/视频/官方组件；真机实测块级内容会**整段消失** |
+| `quoted_url`（`url(` 后紧跟引号） | `url('…')` 会让**整个元素被拆掉**（背景图连同 `<section>` 一起消失），引号必须去掉 |
 
-**3 条 WARN**（不阻断）：
+**4 条 WARN**（不阻断）：
 
 | 规则（触发条件） | 说明 |
 |---|---|
 | `iframe_tag`（出现 `<iframe`） | 仅白名单来源（腾讯视频等）可用 |
 | `external_link`（`<a href="http(s)://…` 且目标非 `mp.weixin.qq.com`） | 未认证号会被过滤；wx 正常产物应已转成脚注，出现即说明有手改或外部 HTML |
 | `too_many_images`（`<img>` 数量 > 10） | 超过微信正文上限 10 张，发布时会移除末尾多余的 |
+| `nodeleaf_empty`（`<section nodeleaf>` 内没有任何元素） | 这个容器只用于承载单个图片/视频/官方组件，空着没意义 |
 
 **门禁：`validate` 不会自动阻断。** 排版命令只在 stderr 打印一行告警就继续，退出码始终是 0。所以**必须显式跑一次 `wxart validate` 并要求退出码为 0**（存在任一 ERROR 时退出码为 1）。不跑就等于没有校验。
 
@@ -330,6 +333,18 @@ wxart shot a.html b.html -o 对比.png --sheet-height 1500          # 每张单�
 | 校验通过 | **显式跑** `wxart validate <article.html>`，**退出码 0**（没有任何 ERROR） | 修 `article.md` 或换主题后整篇重跑 |
 | 无残留占位符 | `article.html` 与正文里都不含 `placeholder` | 先走 [06-visual.md](06-visual.md) 补齐配图 |
 | 图片数量 | `<img>` ≤ 10 | 减图或合并，微信发布时会移除末尾多余的 |
+
+**第二道门禁（可选、不阻断）：微信官方校验器。** `wxart validate` 是 16 条**正则 + 2 条结构检查**，测不了布局；
+官方那套（[`wechatjs/verify-article-structure-spec`](https://github.com/wechatjs/verify-article-structure-spec)）
+用真实浏览器测量固定宽度、`line-height` 叠字、`height` 溢出、暗色对比度。本机装好后：
+
+```bash
+python3 scripts/official_check.py article.html     # 0 通过 / 1 违规 / 2 异常
+```
+
+它**不进硬门禁**——依赖 node + Chromium，缺了就明确 SKIP、退出码仍为 0；
+要 CI 严格模式加 `--strict`。换主题或骨架后建议跑一次。判据与本手册的对照见
+[20-wechat-html-constraints.md](20-wechat-html-constraints.md) 第 17 节。
 
 **「草稿创建成功」不等于排版完成。** 正文仍有 `placeholder` 时，状态必须报「草稿已提交，正文配图未完成」。
 

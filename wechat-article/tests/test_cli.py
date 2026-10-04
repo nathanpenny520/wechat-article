@@ -1088,3 +1088,77 @@ class WeChatDocsTest(unittest.TestCase):
                 cwd=td, env=env, capture_output=True, text=True)
             self.assertNotEqual(res.returncode, 0)
             self.assertIn("docs fetch", res.stderr)
+
+
+class ValidateNodeleafTest(unittest.TestCase):
+    """nodeleaf 容器：官方规范只允许单个图片/视频/官方组件。
+
+    2026-10-04 真机实测：容器里放 <p> 时 draft/get 回读保留、手机上整段消失，
+    所以这一条必须是 ERROR（见 references/20-wechat-html-constraints.md 第 3、7 节）。
+    """
+
+    @staticmethod
+    def _rules(html: str) -> list[str]:
+        from wxengine.commands.validate_html import validate_html
+        return [i["rule"] for i in validate_html(html)]
+
+    def test_block_child_inside_nodeleaf_is_error(self) -> None:
+        self.assertIn("nodeleaf_content",
+                      self._rules('<section nodeleaf="nodeleaf"><p>文字</p></section>'))
+
+    def test_nested_section_inside_nodeleaf_is_error(self) -> None:
+        self.assertIn("nodeleaf_content",
+                      self._rules('<section nodeleaf><section><img src="a.png"></section></section>'))
+
+    def test_two_children_inside_nodeleaf_is_error(self) -> None:
+        self.assertIn("nodeleaf_content",
+                      self._rules('<section nodeleaf><img src="a.png"><img src="b.png"></section>'))
+
+    def test_unclosed_nodeleaf_still_reports(self) -> None:
+        """未闭合时按到文末处理——宁可多报，也不要因为缺 </section> 就静默放过。"""
+        self.assertIn("nodeleaf_content", self._rules("<section nodeleaf><p>文字</p>"))
+
+    def test_single_image_inside_nodeleaf_passes(self) -> None:
+        self.assertNotIn("nodeleaf_content",
+                         self._rules('<section nodeleaf><img src="a.png" alt=""></section>'))
+
+    def test_empty_nodeleaf_is_warning_not_error(self) -> None:
+        issues = [i for i in __import__("wxengine.commands.validate_html",
+                                        fromlist=["validate_html"]).validate_html(
+            "<section nodeleaf></section>")]
+        self.assertEqual([i["level"] for i in issues], ["WARN"])
+
+    def test_plain_section_and_attributes_are_untouched(self) -> None:
+        """普通 section、以及属性里带 `>` 的写法都不该被误伤。"""
+        self.assertEqual(self._rules("<section><p>正常段落</p></section>"), [])
+        self.assertEqual(self._rules('<section data-x="a>b"><p>文字</p></section>'), [])
+
+
+class ValidateQuotedUrlTest(unittest.TestCase):
+    """url() 带引号：2026-10-04 探针实测——整个元素会被拆掉，不只是属性被删。
+
+    逐项验证过：单引号/双引号、http/https、有无 repeat/size、section 内有无内容，
+    五种构造全部失败；只有不带引号的 `url(http://…)` 活下来。
+    """
+
+    @staticmethod
+    def _rules(html: str) -> list[str]:
+        from wxengine.commands.validate_html import validate_html
+        return [i["rule"] for i in validate_html(html)]
+
+    def test_single_quote_is_error(self) -> None:
+        self.assertIn("quoted_url",
+                      self._rules("<section style=\"background-image:url('https://a.com/x.png')\"></section>"))
+
+    def test_double_quote_is_error(self) -> None:
+        self.assertIn("quoted_url",
+                      self._rules('<section style=\'background-image:url("https://a.com/x.png")\'></section>'))
+
+    def test_bare_url_passes(self) -> None:
+        self.assertEqual(
+            self._rules('<section style="background-image:url(https://a.com/x.png);background-repeat:repeat"></section>'),
+            [])
+
+    def test_font_family_quotes_are_not_flagged(self) -> None:
+        """引号本身不是问题，`url()` 里的引号才是——别误伤 font-family。"""
+        self.assertEqual(self._rules('<p style="font-family:&quot;Menlo&quot;,Consolas,monospace">x</p>'), [])
