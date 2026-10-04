@@ -26,6 +26,19 @@ import wxenv  # noqa: E402
 HAVE_DEPS = not wxenv.missing_modules()
 
 
+def _find_browser() -> str | None:
+    """`wxart shot` 依赖 Chromium 内核浏览器；没有就跳过截图相关的断言。"""
+    try:
+        import wxshot  # noqa: WPS433
+
+        return wxshot.find_browser()
+    except Exception:  # noqa: BLE001 — 缺依赖时按「没有浏览器」处理
+        return None
+
+
+BROWSER = _find_browser()
+
+
 class CliHarness:
     """在隔离的状态目录与工作区里跑 CLI 的公共装置。"""
 
@@ -161,6 +174,82 @@ class CliTestCase(CliHarness, unittest.TestCase):
         self.assertAlmostEqual(w / h, 2.35, delta=0.05)
         self.assertGreaterEqual(max(w, h), 900)
         self.assertIn("字高占", res.stdout)
+
+    # ------------------------------------------------------------ 观感核对（shot）
+
+    def test_shot_reports_missing_input(self) -> None:
+        res = self.run_cli("shot", str(self.workspace / "nope.html"), "-o", str(self.workspace / "o.png"))
+        self.assertEqual(res.returncode, 2)
+        self.assertIn("文件不存在", res.stderr)
+
+    @unittest.skipUnless(BROWSER, "本机没有 Chromium 内核浏览器")
+    @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
+    def test_shot_renders_at_phone_width(self) -> None:
+        """375px × 2 倍密度：截图宽度必须是手机正文宽度，而不是浏览器窗口宽度。"""
+        from PIL import Image
+
+        frag = self._write("frag.html", '<section style="padding:16px"><p>正文一段</p></section>')
+        out = self.workspace / "shot.png"
+        res = self.run_cli("shot", str(frag), "-o", str(out))
+        self.assertEqual(res.returncode, 0, res.stderr)
+        w, h = Image.open(out).size
+        self.assertEqual(w, 750, f"应为 375px × 2 倍密度，实际 {w}")
+        self.assertGreater(h, 100)
+        self.assertIn("无横向溢出", res.stdout)
+
+    @unittest.skipUnless(BROWSER, "本机没有 Chromium 内核浏览器")
+    @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
+    def test_shot_flags_horizontal_overflow(self) -> None:
+        """超出容器宽度的元素在手机上会被右边切掉，截图必须把它报出来。"""
+        frag = self._write("wide.html", '<section style="width:600px">超宽元素</section>')
+        out = self.workspace / "wide.png"
+        res = self.run_cli("shot", str(frag), "-o", str(out))
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertIn("横向溢出", res.stdout)
+        self.assertNotIn("无横向溢出", res.stdout)
+
+    # ------------------------------------------------------------ 原地更新草稿（redraft）
+
+    def _article_dir(self) -> Path:
+        d = self.workspace / "art"
+        d.mkdir(exist_ok=True)
+        (d / "article.yaml").write_text(
+            "title: 测试标题\nauthor: 测试作者\ndigest: 摘要\n", encoding="utf-8")
+        (d / "article.html").write_text("<section><p>正文</p></section>", encoding="utf-8")
+        from PIL import Image
+
+        Image.new("RGB", (1408, 599), (200, 30, 30)).save(d / "cover.png")
+        return d
+
+    @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
+    def test_redraft_dry_run_never_touches_the_network(self) -> None:
+        """`--dry-run` 必须在取 token 之前返回：它存在的意义就是「先确认改的是哪条」。"""
+        d = self._article_dir()
+        res = self.run_cli("redraft", "FAKE_MEDIA_ID", str(d), "--dry-run")
+        self.assertEqual(res.returncode, 0, res.stderr)
+        report = json.loads(res.stdout)
+        self.assertEqual(report["media_id"], "FAKE_MEDIA_ID")
+        self.assertEqual(report["title"], "测试标题")
+        self.assertGreater(report["content_bytes"], 0)
+        self.assertNotIn("access_token", res.stdout + res.stderr)
+
+    @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
+    def test_redraft_reports_missing_metadata(self) -> None:
+        d = self.workspace / "empty"
+        d.mkdir()
+        res = self.run_cli("redraft", "M", str(d), "--dry-run")
+        self.assertEqual(res.returncode, 1)
+        self.assertIn("article.yaml", res.stderr)
+
+    @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
+    def test_redraft_reports_missing_cover(self) -> None:
+        d = self.workspace / "nocover"
+        d.mkdir()
+        (d / "article.yaml").write_text("title: T\n", encoding="utf-8")
+        (d / "article.html").write_text("<section></section>", encoding="utf-8")
+        res = self.run_cli("redraft", "M", str(d), "--dry-run")
+        self.assertEqual(res.returncode, 1)
+        self.assertIn("封面", res.stderr)
 
     # ------------------------------------------------------------ 引擎分发
 
@@ -440,6 +529,36 @@ class GuardTestCase(CliHarness, unittest.TestCase):
         aws_report = json.loads(aws.stdout)
         self.assertEqual(aws_report["foreign"][0]["name"], "highlight")
         self.assertEqual(aws_report["deprecated"], [])
+
+    def test_aside_is_an_aws_container_and_foreign_to_wx(self) -> None:
+        """`:::aside` 是 aws 的旁注组件；对 wx 来说它是外来容器。
+
+        它刻意不复用 wx 的 `callout`：两者方括号参数语义不同（wx 是固定类型关键字，
+        aws 是自由标签），同名不同语义正是栅栏要拦的东西。
+        """
+        md = self._write("aside.md", "# 标题\n\n:::aside[提醒]\n一句旁注。\n:::\n\n正文。\n")
+        aws = self.run_cli("guard", "containers", str(md), "--engine", "aws", "--json")
+        self.assertEqual(aws.returncode, 0, aws.stdout)
+        report = json.loads(aws.stdout)
+        self.assertEqual(report["foreign"], [])
+        self.assertEqual(report["deprecated"], [])
+
+        wx = self.run_cli("guard", "containers", str(md), "--engine", "wx", "--json")
+        self.assertEqual(wx.returncode, 1, "wx 引擎不认识 aside，应拦下")
+        self.assertEqual(json.loads(wx.stdout)["foreign"][0]["name"], "aside")
+
+    def test_aside_renders_as_a_boxed_block(self) -> None:
+        if not HAVE_DEPS:
+            self.skipTest("缺少运行依赖")
+        md = self._write("aside2.md", "# 标题\n\n正文。\n\n:::aside[前提]\n换任务就不成立了。\n:::\n")
+        out = self.workspace / "aside.html"
+        # 用内置主题：隔离状态目录里没跑 init，种子预设（手账/技术/活力/硬朗）还没铺进去
+        res = self.run_cli("format", str(md), "--engine", "aws", "--theme", "资讯", "-o", str(out))
+        self.assertEqual(res.returncode, 0, res.stderr)
+        html = out.read_text(encoding="utf-8")
+        self.assertIn("前提", html, "方括号里的标签必须渲染出来")
+        self.assertIn("换任务就不成立了。", html)
+        self.assertIn("border-left:3px solid", html, "旁注块靠左侧竖条与正文区分")
 
     def test_force_bypasses_container_guard(self) -> None:
         if not HAVE_DEPS:

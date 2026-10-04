@@ -102,11 +102,13 @@ wxart publish publish <media_id>               # 提交发布（异步）并轮�
 wxart publish status <publish_id>              # 查询发布结果（JSON）
 wxart publish full <article_dir> [--publish] [--account N]
 wxart publish recent-articles [-n N]           # 最近已发布文章（默认 5）
+wxart redraft <media_id> <article_dir> [--index 0] [--dry-run]   # 原地更新草稿（不新建）
 wxart getdraft list | get <media_id> | published-list | published-fields | publish-get <id> | article-get <id>
 ```
 
 - **`full`** 一键全流程：上传封面 → 上传正文图并替换路径 → 建草稿 → 视配置提交发布。`<article_dir>` 需含 `article.yaml` 与 `article.html`。
-- **`--account` 是全局选项，必须放在子命令之前**：`wxart publish --account 1 full <dir>`。也可写 `config.yaml` 的 `wechat_publish_slot: <整数>`；**CLI 优先**。
+- **`redraft` 走 `draft/update`，原地替换某条草稿的内容。** 与 `full` 的区别是**不新建**：稿子已经进草稿箱、只想换版式时用它，试三套模版不会在草稿箱里留下三条近乎重复的稿子。`media_id` 用 `wxart getdraft list` 取；`<article_dir>` 的目录结构与 `full` 相同。写完**回读一次**核对标题未变（写错条目也会返回 `errcode: 0`）。`--dry-run` 只打印 `media_id` / 标题 / 正文字节数 / 封面路径——**改版式前先跑它确认改的是哪一条**。
+- **`--account` 是全局选项，必须放在子命令之前**：`wxart publish --account 1 full <dir>`。也可写 `config.yaml` 的 `wechat_publish_slot: <整数>`；**CLI 优先**。`redraft` 从 `config.yaml` 的 `wechat_publish_slot` 取槽位，没有 `--account`。
 - `getdraft` 与 `publish` **相互独立**，走 `freepublish/*` 接口，用于补齐往期推荐链接。**需要公众号具备对应接口权限**，没权限就直接告诉用户手填。
 - `wxart publish --engine wx <md> --cover cover.png --title T [--digest D] [--theme sspai]` 是备选路径：从 Markdown 直接转换并推草稿，单账号、无裁剪框与压缩策略。
 

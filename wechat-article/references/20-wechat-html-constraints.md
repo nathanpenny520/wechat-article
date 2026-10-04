@@ -51,6 +51,30 @@ linear-gradient 渐变色条     transform:rotate
 不是微信客户端 webview**——客户端仍可能在渲染时忽略个别属性，新版式上线前真机看一眼；
 3) 当时 `position` 与 `id` **没测**（若真被删，SVG 内 `url(#…)` 会整个断掉，混测会污染结论）。
 
+### 第二批探针（2026-10-04 · 11 项，10 通过 / 1 被删）
+
+同一路径（`draft/add` → `draft/get`）重跑一遍，并把「排版本更依赖、上一批没覆盖」的构造补上。
+**结论：这一批里只有 `background-image` 被删，其余全部逐字节保留。**
+
+| 构造 | 结果 |
+|---|---|
+| `background-color:#FFE8E8`（长写） | 保留 |
+| `background:#E8F5E9`（简写） | 保留 |
+| `background:linear-gradient(90deg,…)` | 保留 |
+| **`background-image:url('https://…')`（外链）** | **整条被删**——`<section>` 还在，`background-image` 声明消失 |
+| 内联 `<svg>` / `<rect>` | 保留（`viewBox` 被小写成 `viewbox`，其余不动） |
+| `display:flex` + `flex:1` | 保留 |
+| `border-radius` + `box-shadow` | 保留 |
+| `-webkit-background-clip:text` + `color:transparent` | 保留（渐变文字可用） |
+| `<span leaf="">` | 保留 |
+| 嵌套 `<section>` | 保留 |
+
+**这条决定了「秀米那种背景」怎么做**：秀米的花纹底、色带、花边区几乎都是
+`background-image` 指向**它自己上传到微信图床的图片**（`mmbiz.qpic.cn`）。外链会被删，
+所以要做同样的效果，必须先把装饰图 `media/uploadimg` 上传换成 `mmbiz` 链接**再**写进
+`background-image`——直接用外部图片地址一定失败。两个引擎目前都**不产出** `background-image`，
+版式全靠内联 CSS 与 SVG；这是与秀米之间唯一的真实差距，不是「没做排版」。
+
 ## 4. 中文字体指定了也没用
 
 **手机微信里，`font-family` 对中文完全无效。**（2026-09-06 探针稿，iPhone 微信实测）
@@ -115,6 +139,7 @@ Didot 可做高对比衬线 masthead。**含数字的字体名必须加引号**�
 | `transform` | `rotate` **实测通过**；iOS 上 SVG 的 `transform-origin` 据资料仍不稳，谨慎使用 |
 | `display:flex` | **实测通过**（含 `gap`）。仍建议为老编辑器场景保留 `inline-block` / `<table>` 降级 |
 | 渐变 `background` | **实测通过**。荧光笔底纹与渐变色条都正常渲染 |
+| `background-image:url(外链)` | **整条被删**（2026-10-04 回读实测）。`<section>` 保留，属性声明消失。要做图纹底必须先把图上传成 `mmbiz.qpic.cn` 链接再写进来 |
 | 百分比做位移 | 如 `margin-top:-100%` 不可靠 |
 | `text-decoration-thickness` | **被删**（2026-09-07 实测）。下划线粗细控不了 |
 | `text-underline-offset` | **被删**（同上）。下划线离字底的距离控不了 |

@@ -1,0 +1,45 @@
+name: aside
+displayName: 旁注块
+category: evidence
+body: free
+when_to_use: '一段需要和正文区分开的补充：使用前提、例外情况、易错点、补充说明。
+
+  正文在讲主线，这类信息是「顺带提醒一句」——留在段落里会被读成主线的一部分，
+  单独立块读者才知道这段是旁注。
+
+
+  方括号里填一个短标签（提醒 / 注意 / 前提 / 补充），正文写要说的话。
+
+  '
+when_not_to_use: '需要读者截图转发的那一句：那是 quote-card 的活，卡片更重、更值得被转。
+
+  并列的三条以上检查项：用 checklist，提示块不做列表。
+
+  每一节都插一块：满篇提示块等于没有重点，一篇文章最多两处。
+
+  '
+anti_pattern: '标签写成一句话（「这里需要特别注意的是」）——标签是分类用的，两个字足够。
+
+  正文写成三段——提示块是旁注，超过三行读者直接跳过，该拆成正文小节。
+
+  和导语（lead）混用同一个标签——导语是开篇装置，提示块是途中旁注，两者标签必须不同，
+  否则读者分不清「这是开头还是又一个提醒」。
+
+  把关键结论只写在提示块里——旁注的视觉地位低于正文，重要结论放这儿等于降级。
+
+  '
+example: ':::aside[前提]
+
+  上面的成本对比按输入 token 计价，输出不收费；换成需要输出文本的任务，这套算法不成立。
+
+  :::
+
+  '
+# {arg} = 方括号里的短标签；{content} = 提示正文
+# 左侧竖条用 primary-fill、底色用 bg-accent-color：两者都从主题派生，
+# 所以这一块在八套骨架下自动跟随配色，不需要按骨架各写一份。
+template: |
+  <section style="margin:2.4em 0; background:{bg-accent-color}; border-left:3px solid {primary-fill}; border-radius:0 12px 12px 0; padding:18px 20px;">
+    <section style="font-size:13px; letter-spacing:1px; font-weight:700; color:{primary-ink}; margin-bottom:8px;">{arg}</section>
+    <section style="font-size:15.5px; line-height:1.85; color:{text-color};">{content}</section>
+  </section>

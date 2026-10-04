@@ -39,7 +39,7 @@ ENGINE_CONTAINERS: dict[str, set[str]] = {
     },
     "aws": {
         "section-title", "lead", "quote-card", "stat", "steps",
-        "compare", "layers", "checklist", "closing",
+        "compare", "layers", "checklist", "closing", "aside",
     },
 }
 

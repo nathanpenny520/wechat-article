@@ -200,6 +200,63 @@ class TestDocCliSync(unittest.TestCase):
         self.assertIn("--no-check", body)
 
 
+class TestComponentGuardSync(unittest.TestCase):
+    """版本组件与容器栅栏必须同步。
+
+    这条守的是一个**静默失效**：新增一个内置 aws 组件、却忘了把它登记进
+    `wxguard.ENGINE_CONTAINERS["aws"]`，结果是渲染器认识它、栅栏不认识——
+    `wxart guard containers` 会把合法的 `:::新组件` 判成「外来容器」而拦下排版。
+    反过来，栅栏里留着一个已经不存在的组件名，则会让真正写错的容器悄悄过闸。
+    所以两侧必须**恰好相等**。
+    """
+
+    COMPONENTS = (SKILL_ROOT / "scripts" / "aws" / "aws-wechat-article-formatting"
+                  / "references" / "components")
+    #: 骨架目录里的内部组件：不是 `:::` 容器，由渲染器按结构自动触发。
+    INTERNAL = {"article-end", "h2-deco", "hr-deco", "img-deco", "li-label"}
+
+    def _generic_names(self) -> set[str]:
+        return {p.stem for p in self.COMPONENTS.glob("*.yaml")}
+
+    def _guard_aws_names(self) -> set[str]:
+        sys.path.insert(0, str(SKILL_ROOT / "scripts"))
+        import wxguard  # noqa: WPS433
+
+        return set(wxguard.ENGINE_CONTAINERS["aws"])
+
+    def test_generic_components_match_the_aws_container_set(self) -> None:
+        generic, guard = self._generic_names(), self._guard_aws_names()
+        self.assertEqual(
+            sorted(guard - generic), [],
+            "栅栏认识这些容器，但内置组件里没有 —— 写了会渲染成普通文本却过闸",
+        )
+        self.assertEqual(
+            sorted(generic - guard), [],
+            "这些内置组件没登记进栅栏 —— 用它们会被误判成外来容器而拦下排版",
+        )
+
+    def test_skeleton_overrides_only_reuse_known_names(self) -> None:
+        """骨架专属版只能是「通用组件」或「内部装饰件」，不能凭空造新容器名。"""
+        allowed = self._generic_names() | self.INTERNAL
+        offenders = []
+        for sub in sorted(p for p in self.COMPONENTS.iterdir() if p.is_dir()):
+            for f in sorted(sub.glob("*.yaml")):
+                if f.stem not in allowed:
+                    offenders.append(f"{sub.name}/{f.name}")
+        self.assertEqual(offenders, [], f"骨架目录出现了未登记的新名字: {offenders}")
+
+    def test_note_and_highlight_stay_removed(self) -> None:
+        """`note` 与 `highlight` 是已删除的名字，不能被重新占用（栅栏里仍登记为废弃）。"""
+        generic = self._generic_names()
+        for gone in ("note", "highlight"):
+            self.assertNotIn(gone, generic, f"{gone} 曾被删除，不应重新出现")
+        sys.path.insert(0, str(SKILL_ROOT / "scripts"))
+        import wxguard  # noqa: WPS433
+
+        for gone in ("note", "highlight"):
+            self.assertIn(gone, wxguard.DEPRECATED, f"{gone} 应仍在废弃表里")
+
+
 class TestNoUpstreamLeakage(unittest.TestCase):
     """交付文档里不应残留上游品牌与迁移叙事。
 
