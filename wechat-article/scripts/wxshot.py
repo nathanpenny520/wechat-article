@@ -260,8 +260,11 @@ def main(argv: list[str] | None = None) -> int:
             height, over, detail = measure(browser, fragment, args.width, work)
             if height <= 0:
                 height = 3000
+            # 多份输入时文件名带上序号。只按 `path.stem` 命名会撞车——
+            # 对比不同主题时输入往往同名（各有各目录的 article.html），
+            # 后一张会静默覆盖前一张，只剩最后一张能看。
             target = out if len(paths) == 1 else out.with_name(
-                f"{out.stem}-{path.stem}{out.suffix or '.png'}")
+                f"{out.stem}-{i + 1}-{path.stem}{out.suffix or '.png'}")
             y0 = crop[0] if crop else 0
             y1 = min(crop[1] if crop else height, height + 40, args.max_height)
 

@@ -208,6 +208,23 @@ class CliTestCase(CliHarness, unittest.TestCase):
         self.assertIn("横向溢出", res.stdout)
         self.assertNotIn("无横向溢出", res.stdout)
 
+    @unittest.skipUnless(BROWSER, "本机没有 Chromium 内核浏览器")
+    @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
+    def test_shot_keeps_every_input_when_names_collide(self) -> None:
+        """对比不同主题时输入往往同名（各有各目录的 article.html），不能互相覆盖。"""
+        a = self.workspace / "t1"
+        b = self.workspace / "t2"
+        for d, color in ((a, "#FF0000"), (b, "#0000FF")):
+            d.mkdir()
+            (d / "article.html").write_text(
+                f'<section style="padding:16px;color:{color}"><p>主题对比</p></section>',
+                encoding="utf-8")
+        out = self.workspace / "cmp.png"
+        res = self.run_cli("shot", str(a / "article.html"), str(b / "article.html"), "-o", str(out))
+        self.assertEqual(res.returncode, 0, res.stderr)
+        produced = sorted(p.name for p in self.workspace.glob("cmp-*.png"))
+        self.assertEqual(len(produced), 3, f"应出两张单图 + 一张对照图，实际 {produced}")
+
     # ------------------------------------------------------------ 原地更新草稿（redraft）
 
     def _article_dir(self) -> Path:
