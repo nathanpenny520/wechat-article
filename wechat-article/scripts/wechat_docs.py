@@ -59,6 +59,18 @@ def docs_root() -> Path:
     return wxenv.state_home() / "wechat-docs"
 
 
+def mirror_stats() -> tuple[int, Path]:
+    """返回 (已抓页数, 镜像目录)。没抓过就是 0。
+
+    给 `wxart doctor` 用：自检要能一句话说清「抓没抓、抓了多少」，
+    而不是让 doctor 自己再实现一遍目录遍历（两份判据迟早会漂）。
+    """
+    root = docs_root()
+    if not root.is_dir():
+        return 0, root
+    return sum(1 for p in root.rglob("*.md") if p.name != "INDEX.md"), root
+
+
 def _get(url: str, timeout: int = 25) -> str:
     req = urllib.request.Request(url, headers={"User-Agent": UA})
     with urllib.request.urlopen(req, timeout=timeout) as resp:

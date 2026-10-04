@@ -349,17 +349,41 @@ def cmd_doctor(args: list[str]) -> int:
     ):
         add(label, "ok", "存在" if (wxenv.SKILL_ROOT / "scripts" / rel).exists() else "缺失")
 
+    # 5) 官方文档离线镜像（可选，不阻断）
+    #
+    # 用 info 而不是 warn：这是个「要不要顺手抓一份」的建议，不是待办。
+    # 判为 warn 会把「全部通过」改成「N 项提示」，等于把一个可选项算进待处理清单里。
+    #
+    # 也不做交互式询问：doctor 会被 agent 与脚本非交互地调用，卡在 input() 上
+    # 是比「少问一句」严重得多的故障。提示 + 一条命令就够。
+    #
+    # 不记「是不是第一次」：那要靠状态标记，而且之后提示突然消失更让人困惑。
+    # 抓过之后这一项自然变成 ok 并带上页数。
+    import wechat_docs
+
+    pages, mirror = wechat_docs.mirror_stats()
+    if pages:
+        add("docs.mirror", "ok", f"已抓取 {pages} 页（{mirror}）")
+    else:
+        add("docs.mirror", "info", "尚未抓取官方文档",
+            "可选：`wxart docs fetch`（约 1 分钟）抓一份到本地，之后可离线 "
+            "`docs search` / `docs show` 查字段上限与错误码；"
+            "不抓也能用 references/22-wechat-api-reference.md 的摘要")
+
     errors = [c for c in checks if c["level"] == "error"]
     warns = [c for c in checks if c["level"] == "warn"]
+    infos = [c for c in checks if c["level"] == "info"]
 
     if as_json:
         print(json.dumps({"snapshot": snapshot, "checks": checks,
-                          "errors": len(errors), "warnings": len(warns)}, ensure_ascii=False, indent=2))
+                          "errors": len(errors), "warnings": len(warns),
+                          "info": len(infos)}, ensure_ascii=False, indent=2))
         return 1 if errors else 0
 
     print(_c(f"wxart doctor {version()}", "1"))
     for c in checks:
-        mark = {"ok": _c("✓", "32"), "warn": _c("!", "33"), "error": _c("✗", "31")}[c["level"]]
+        mark = {"ok": _c("✓", "32"), "warn": _c("!", "33"),
+                "error": _c("✗", "31"), "info": _c("·", "2")}[c["level"]]
         print(f"  {mark} {c['check']:<24}{c['detail']}")
         if c["hint"] and c["level"] != "ok":
             print(f"      → {c['hint']}")
@@ -371,6 +395,8 @@ def cmd_doctor(args: list[str]) -> int:
         print(_c(f"{len(warns)} 项提示（不阻断写作/排版/配图）", "33"))
     else:
         print(_c("全部通过", "32"))
+    if infos:
+        print(_c(f"{len(infos)} 项可选建议（不影响退出码）", "2"))
     return 0
 
 

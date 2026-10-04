@@ -148,6 +148,51 @@ class CliTestCase(CliHarness, unittest.TestCase):
         self.assertIn("config", names)
         self.assertIn("publish_method", names)
 
+    def test_doctor_hints_about_the_offline_docs_mirror(self) -> None:
+        """首次自检要提示可以抓一份官方文档，但**不能**把它算成待办。
+
+        用 info 而不是 warn：这是「要不要顺手抓一份」的建议。判成 warn 会把
+        「全部通过」改成「N 项提示」，等于把可选建议算进待处理清单。
+        """
+        res = self.run_cli("doctor", "--json")
+        self.assertEqual(res.returncode, 0, res.stderr)
+        report = json.loads(res.stdout)
+        entry = next(c for c in report["checks"] if c["check"] == "docs.mirror")
+        self.assertEqual(entry["level"], "info")
+        self.assertIn("wxart docs fetch", entry["hint"])
+        self.assertEqual(report["info"], 1)
+        # 关键：info 不进 warnings，也不影响退出码
+        self.assertNotIn("docs.mirror", [c["check"] for c in report["checks"] if c["level"] == "warn"])
+        self.assertEqual(report["errors"], 0)
+
+    def test_doctor_reports_a_fetched_mirror_with_page_count(self) -> None:
+        """抓过之后就变成 ok 并带上页数；INDEX.md 不算一页。"""
+        root = self.state / "wechat-docs" / "doc" / "subscription" / "api"
+        root.mkdir(parents=True)
+        for i in range(3):
+            (root / f"p{i}.md").write_text("x" * 300, encoding="utf-8")
+        (self.state / "wechat-docs" / "INDEX.md").write_text("# 索引", encoding="utf-8")
+
+        res = self.run_cli("doctor", "--json")
+        self.assertEqual(res.returncode, 0, res.stderr)
+        report = json.loads(res.stdout)
+        entry = next(c for c in report["checks"] if c["check"] == "docs.mirror")
+        self.assertEqual(entry["level"], "ok")
+        self.assertIn("3 页", entry["detail"])
+        self.assertEqual(report["info"], 0)
+
+    def test_doctor_stays_non_interactive(self) -> None:
+        """doctor 会被 agent 与脚本非交互调用——卡在 input() 上比少问一句严重得多。
+
+        用闭合的 stdin 跑：任何 input() 都会立刻 EOFError。
+        """
+        env = dict(self.env)
+        res = subprocess.run(
+            [sys.executable, str(WXART), "doctor"],
+            cwd=str(self.workspace), env=env, capture_output=True, text=True, stdin=subprocess.DEVNULL)
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertNotIn("Traceback", res.stderr)
+
     def test_preview_page_wraps_fragments_at_phone_width(self) -> None:
         """aws 引擎产物是裸 <section>，预览页要把它装进 375px 手机卡才看得出观感。"""
         frag = self._write("frag.html", '<section style="color:#111"><p>正文一段</p></section>')
