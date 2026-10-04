@@ -92,16 +92,18 @@ COMMANDS: dict[str, tuple[str, str, str]] = {
     "shot": ("n", "", "排版产物截成手机宽度 PNG（核对观感，含多主题对照图）"),
     "deco": ("n", "", "给正文加纸纹底 / 花边框（底图上传图床再写进 background-image）"),
     "redraft": ("n", "", "原地更新草稿箱里的一条草稿（换版式不新建）"),
+    "docs": ("n", "", "微信官方文档本地镜像：抓取 / 检索 / 查看（离线查规定）"),
+    "chart": ("n", "", "把已核实的数字画成正文配图（条形 / 数字面板 / 时间线 / 对照）"),
     # —— 上游自检 ——
     "validate-env": ("a", "aws/aws-wechat-article-main/scripts/validate_env.py", "aws 侧配置校验"),
 }
 
 GROUPS: list[tuple[str, list[str]]] = [
-    ("环境与工作区", ["doctor", "init", "env", "home", "migrate"]),
+    ("环境与工作区", ["doctor", "init", "env", "home", "migrate", "docs"]),
     ("选题", ["hotspots", "search-articles", "seo"]),
     ("写作", ["draft", "llm-write", "score", "content-eval", "sources"]),
     ("排版", ["format", "preview", "preview-page", "shot", "deco", "themes", "gallery", "validate"]),
-    ("配图", ["image", "cover", "image-post", "image-prepare", "image-check"]),
+    ("配图", ["image", "chart", "cover", "image-post", "image-prepare", "image-check"]),
     ("发布", ["publish", "redraft", "article-init", "getdraft"]),
     ("学习飞轮", ["learn-edits", "learn-theme", "exemplar", "fetch-article", "build-playbook"]),
     ("复盘与分发", ["stats", "similarity"]),
@@ -601,6 +603,20 @@ def cmd_deco(args: list[str]) -> int:
     return wxdeco.main(list(args))
 
 
+def cmd_docs(args: list[str]) -> int:
+    """微信官方文档本地镜像：离线查接口规定，少靠探针试。"""
+    import wechat_docs
+
+    return wechat_docs.main(list(args))
+
+
+def cmd_chart(args: list[str]) -> int:
+    """把文章里已经核实过的数字画成正文配图。不编数据。"""
+    import make_chart
+
+    return make_chart.main(list(args))
+
+
 def cmd_redraft(args: list[str]) -> int:
     """原地更新草稿箱里的一条草稿，避免「换模版＝多一条草稿」。"""
     import redraft
@@ -659,6 +675,8 @@ NATIVE = {
     "shot": cmd_shot,
     "deco": cmd_deco,
     "redraft": cmd_redraft,
+    "docs": cmd_docs,
+    "chart": cmd_chart,
 }
 
 #: 原生命令里需要第三方依赖（Pillow / PyYAML）的几个。
@@ -666,7 +684,7 @@ NATIVE = {
 #: 原生命令在 `maybe_reexec_into_venv()` **之前**分发，这是有意的：`env` 的职责就是
 #: 如实报告当前解释器缺哪些依赖，先切 venv 会让它永远报「依赖齐全」。所以只给确实
 #: 需要依赖的命令单独补一次切换，而不是整体提前。
-_NATIVE_NEEDS_DEPS = {"cover", "shot", "deco", "redraft"}
+_NATIVE_NEEDS_DEPS = {"cover", "shot", "deco", "redraft", "docs", "chart"}
 
 
 # ------------------------------------------------------------------ format 的引擎栅栏

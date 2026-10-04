@@ -58,11 +58,12 @@ python3 {skill_dir}/scripts/wxart.py <命令>        # 下文简写为 wxart
 | 用户意图 | 读哪份 references | 主要命令 |
 |---|---|---|
 | 环境/安装/首次配置/换风格 | [01-setup.md](references/01-setup.md) | `wxart doctor` `wxart init` |
+| 接口规定 / 字段上限 / 错误码（离线查官方文档） | [22-wechat-api-reference.md](references/22-wechat-api-reference.md) | `wxart docs fetch` `wxart docs search` `wxart docs show` |
 | 今天写什么 / 找选题 / 起标题 | [02-topic.md](references/02-topic.md) | `wxart hotspots` `wxart search-articles` `wxart seo` |
 | 就这个选题写正文 | [03-write.md](references/03-write.md) | `wxart llm-write` `wxart sources` `wxart draft` |
 | 检查一下 / 审稿 / 校对 / 敏感词 | [04-review.md](references/04-review.md) | `wxart score` `wxart content-eval` |
 | 排版 / 转 HTML / 换主题 / 看排版效果 / 加纸纹花边背景 | [05-format.md](references/05-format.md) | `wxart format` `wxart gallery` `wxart validate` `wxart shot` `wxart deco` |
-| 封面 / 配图 / 内文图 / 图片提示词 | [06-visual.md](references/06-visual.md) | `wxart image` |
+| 封面 / 配图 / 内文图 / 数据图 / 图片提示词 | [06-visual.md](references/06-visual.md) | `wxart image` `wxart chart` `wxart cover` |
 | 推到草稿箱 / 发布 / 换图重发 / 只换版式不新建 | [07-publish.md](references/07-publish.md) | `wxart publish` `wxart redraft` `wxart image-post` |
 | 学习我的修改 / 导入范文 / 学排版 | [10-learn.md](references/10-learn.md) | `wxart learn-edits` `wxart exemplar` `wxart learn-theme` |
 | 看看文章数据 / 复盘 | [11-stats.md](references/11-stats.md) | `wxart stats` |

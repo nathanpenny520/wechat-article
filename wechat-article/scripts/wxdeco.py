@@ -219,35 +219,41 @@ class Uploader:
 # ------------------------------------------------------------------ 主流程
 
 
-def decorate(html: str, skin: str, accent_hex: str, urls: dict[str, str]) -> str:
+def decorate(html: str, texture: str, frame: str, accent_hex: str,
+             urls: dict[str, str]) -> str:
     head, fragment, tail = split_document(html)
     if not fragment.strip():
         raise SystemExit("[ERROR] 正文是空的，没有可装饰的内容")
 
-    paper = make_deco._mix(make_deco.parse_hex(accent_hex), (255, 255, 255), 0.972)
-    soft = make_deco._mix(make_deco.parse_hex(accent_hex), (255, 255, 255), 0.66)
+    accent = make_deco.parse_hex(accent_hex)
+    paper = make_deco._mix(accent, (255, 255, 255), 0.972)
+    soft = make_deco._mix(accent, (255, 255, 255), 0.66)
     inner = fragment
 
-    if skin in ("frame", "full"):
-        top = band_section(urls["band"], make_deco.BAND_CSS_H)
-        bottom = band_section(urls["band_flip"], make_deco.BAND_CSS_H)
-        inner = top + inner + bottom
+    if frame != "none":
+        # 双色带的图更高，CSS 高度必须跟着走，否则菱形会被压扁。
+        h = make_deco.band_height(frame)
+        top_name, bottom_name = (("band", "band_flip") if frame == "single"
+                                 else ("band2", "band2_flip"))
+        inner = band_section(urls[top_name], h) + inner + band_section(urls[bottom_name], h)
 
-    if skin in ("paper", "full"):
+    has_bg = texture != "none"
+    has_frame = frame != "none"
+    if has_bg:
         bg = (f'background-image:url({urls["tile"]}); background-repeat:repeat; '
               f'background-size:{make_deco.TILE_CSS}px {make_deco.TILE_CSS}px; '
               f'background-color:{make_deco.to_hex(paper)};')
-        if skin == "full":
-            # 纸纹与花边同在一层：外层既是框也是纸，正文里不再嵌一层背景。
-            wrapper = (f'border:1px solid {make_deco.to_hex(soft)}; '
-                       f'border-radius:{FRAME_RADIUS}; padding:{FRAME_PAD}; {bg}')
-            inner = wrap_fragment(inner, wrapper)
-        else:
-            inner = add_style(inner, bg)
-    elif skin == "frame":
+    else:
+        bg = ""
+
+    if has_frame:
+        # 有框就以框为最外层：框本身承载纸纹，正文里不再嵌第二层背景。
         wrapper = (f'border:1px solid {make_deco.to_hex(soft)}; '
-                   f'border-radius:{FRAME_RADIUS}; padding:{FRAME_PAD};')
+                   f'border-radius:{FRAME_RADIUS}; padding:{FRAME_PAD}; {bg}').strip()
         inner = wrap_fragment(inner, wrapper)
+    elif has_bg:
+        # 只有纸纹：直接挂在正文自己的外层容器上，不多包一层。
+        inner = add_style(inner, bg)
 
     return head + inner + tail
 
@@ -260,7 +266,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("input", help="排版产物 HTML")
     ap.add_argument("-o", "--output", required=True, help="输出 HTML")
     ap.add_argument("--skin", choices=sorted(make_deco.SKINS), default="full",
-                    help="装饰皮肤，默认 full（纸纹 + 花边框）")
+                    help="皮肤预设，默认 full（轻点阵底 + 单色花边）")
+    ap.add_argument("--texture", choices=make_deco.TEXTURES,
+                    help="覆盖预设里的底子：dot / grid / kraft / none")
+    ap.add_argument("--frame", choices=make_deco.FRAMES,
+                    help="覆盖预设里的花边：none / single / double")
     ap.add_argument("--accent", help="主色；不给则从产物里自动认模版主色")
     ap.add_argument("--no-upload", action="store_true",
                     help="不发上传请求，底图内联成 data: URI（仅用于本地预览）")
@@ -276,6 +286,8 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     html = src.read_text(encoding="utf-8")
 
+    texture, frame = make_deco.resolve(args.skin, args.texture, args.frame)
+
     if args.accent:
         accent = make_deco.parse_hex(args.accent)
         accent_note = f"命令行指定 {make_deco.to_hex(accent)}"
@@ -283,17 +295,18 @@ def main(argv: list[str] | None = None) -> int:
         accent, accent_note = detect_accent(html)
     accent_hex = make_deco.to_hex(accent)
 
-    fingerprint = hashlib.sha256(f"{args.skin}|{accent_hex}|{make_deco.SCALE}".encode()).hexdigest()[:12]
+    fingerprint = hashlib.sha256(
+        f"{texture}|{frame}|{accent_hex}|{make_deco.SCALE}".encode()).hexdigest()[:12]
     assets_dir = Path(args.assets_dir) if args.assets_dir else (
         wxenv.state_home() / "deco" / fingerprint)
-    made = make_deco.build(args.skin, accent_hex, assets_dir)
+    made = make_deco.build(texture, frame, accent_hex, assets_dir)
 
     cache_path = Path(args.cache) if args.cache else (wxenv.state_home() / CACHE_NAME)
     uploader = Uploader(cache_path, use_upload=not args.no_upload)
     urls = {name: uploader.url_for(path) for name, path in made.items()}
     uploader.flush()
 
-    out_html = decorate(html, args.skin, accent_hex, urls)
+    out_html = decorate(html, texture, frame, accent_hex, urls)
     out = Path(args.output)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(out_html, encoding="utf-8")
@@ -317,6 +330,8 @@ def main(argv: list[str] | None = None) -> int:
     result = {
         "output": str(out),
         "skin": args.skin,
+        "texture": texture,
+        "frame": frame,
         "accent": accent_hex,
         "accent_source": accent_note,
         "assets": {k: str(v) for k, v in made.items()},
@@ -330,7 +345,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         mode = "data: URI 内联" if args.no_upload else f"图床换链（新传 {uploader.uploaded}、命中缓存 {uploader.hits}）"
         print(f"[OK] {out}")
-        print(f"     皮肤 {args.skin}　主色 {accent_hex}（{accent_note}）")
+        print(f"     皮肤 {args.skin}（底子 {texture}、花边 {frame}）　主色 {accent_hex}（{accent_note}）")
         print(f"     底图 {len(made)} 张 → {mode}")
         if args.no_upload:
             print("     ⚠ data: URI 只用于本地预览，进草稿箱前必须去掉 --no-upload")

@@ -9,11 +9,14 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+
+import yaml
 
 SKILL_ROOT = Path(__file__).resolve().parent.parent
 WXART = SKILL_ROOT / "scripts" / "wxart.py"
@@ -267,6 +270,28 @@ class CliTestCase(CliHarness, unittest.TestCase):
         res = self.run_cli("redraft", "M", str(d), "--dry-run")
         self.assertEqual(res.returncode, 1)
         self.assertIn("封面", res.stderr)
+
+    @unittest.skipUnless(BROWSER, "本机没有 Chromium 内核浏览器")
+    @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
+    def test_shot_resolves_relative_body_images(self) -> None:
+        """正文图是相对路径，而截图会把片段搬进临时目录——不补 <base> 就整篇图裂。
+
+        判据用内容高度：图在时高度里含图的高度，图裂时只剩 alt 文字那一丁点。
+        """
+        from PIL import Image
+
+        d = self.workspace / "art"
+        (d / "imgs").mkdir(parents=True)
+        # 686x800 的实心图：按 width:100% 渲染到 375px 宽时约 437px 高，差异足够明显
+        Image.new("RGB", (686, 800), (200, 30, 30)).save(d / "imgs" / "x.png")
+        (d / "article.html").write_text(
+            '<section><img src="imgs/x.png" style="display:block;width:100%;height:auto;"></section>',
+            encoding="utf-8")
+
+        res = self.run_cli("shot", str(d / "article.html"), "-o", str(self.workspace / "s.png"))
+        self.assertEqual(res.returncode, 0, res.stderr)
+        height = int(re.search(r"内容高度 (\d+)px", res.stdout).group(1))
+        self.assertGreater(height, 300, f"图没渲染出来（内容高度只有 {height}px）")
 
     # ------------------------------------------------------------ 装饰底图（deco）
 
@@ -756,7 +781,7 @@ class MakeDecoTest(unittest.TestCase):
 
         accent = (0x2E, 0x7B, 0xF6)
         cases = {
-            "tile": lambda: make_deco.make_tile(accent),
+            "tile": lambda: make_deco.make_dot(accent),
             "band": lambda: make_deco.make_band(accent),
             "band_flip": lambda: make_deco.make_band(accent, flip=True),
         }
@@ -771,7 +796,7 @@ class MakeDecoTest(unittest.TestCase):
         """平铺的接缝：点阵周期必须整除画布边长，否则接缝处会出现半截点。"""
         import make_deco
 
-        im = make_deco.make_tile((0x2E, 0x7B, 0xF6))
+        im = make_deco.make_dot((0x2E, 0x7B, 0xF6))
         n = im.size[0]
         self.assertEqual(n % make_deco.TILE_CSS, 0)
         # 点是画在 (0,0) 与正中的，两者颜色相同 → 平铺后是规整网格
@@ -791,17 +816,6 @@ class MakeDecoTest(unittest.TestCase):
                          base.transpose(Image.FLIP_TOP_BOTTOM).tobytes())
 
     @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
-    def test_skins_reference_only_existing_assets(self) -> None:
-        import make_deco
-
-        built = set()
-        for name in ("tile", "band", "band_flip"):
-            built.add(name)
-        for skin, assets in make_deco.SKINS.items():
-            missing = [a for a in assets if a not in built]
-            self.assertEqual(missing, [], f"皮肤 {skin} 引用了不存在的底图 {missing}")
-
-    @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
     def test_no_skin_uses_positioning(self) -> None:
         """四角定位需要 position:absolute，而微信把 position 整条删掉。
 
@@ -810,3 +824,222 @@ class MakeDecoTest(unittest.TestCase):
         import make_deco
 
         self.assertFalse(hasattr(make_deco, "make_corner"))
+
+
+class MakeChartTest(unittest.TestCase):
+    """正文配图生成器的确定性契约（观感靠 `wxart shot` 看，这里测结构与不变量）。"""
+
+    def _spec(self, tmp: Path, body: str) -> Path:
+        p = tmp / "spec.yaml"
+        p.write_text(body, encoding="utf-8")
+        return p
+
+    def _run(self, tmp: Path, body: str, out_name: str = "c.png"):
+        import make_chart
+
+        spec = yaml.safe_load(body)
+        im = make_chart.render(spec)
+        out = tmp / out_name
+        im.save(out)
+        return im, out
+
+    @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
+    def test_canvas_width_is_fixed_regardless_of_label_length(self) -> None:
+        """标签再长也不能把画布撑宽——图与正文同宽，宽度一变就会缩放变形。"""
+        import make_chart
+
+        for label in ("laya", "SemIf-OpenJev", "一个非常非常长的中文项目名称用来测试换行"):
+            im = make_chart.render({
+                "kind": "bar", "title": "T",
+                "items": [{"label": label, "value": 100}],
+            })
+            self.assertEqual(im.size[0], make_chart.W, f"标签 {label!r} 把画布撑宽了")
+
+    @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
+    def test_all_kinds_render(self) -> None:
+        specs = {
+            "bar": {"kind": "bar", "title": "T", "items": [{"label": "a", "value": 3},
+                                                           {"label": "b", "value": 9}]},
+            "kpi": {"kind": "kpi", "title": "T", "items": [{"value": "82 亿", "label": "对价"}]},
+            "timeline": {"kind": "timeline", "title": "T",
+                         "items": [{"date": "9/28", "text": "收购", "note": "同日"}]},
+            "compare": {"kind": "compare", "title": "T",
+                        "left": {"title": "L", "items": ["甲"]},
+                        "right": {"title": "R", "items": ["乙"]}},
+        }
+        import make_chart
+
+        for kind, spec in specs.items():
+            im = make_chart.render(spec)
+            self.assertEqual(im.size[0], make_chart.W, kind)
+            self.assertGreater(im.size[1], 100, kind)
+
+    @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
+    def test_source_line_is_drawn_when_given(self) -> None:
+        """图表有很强的视觉权威感，出处必须留在图上——给了 source 就该变高。"""
+        import make_chart
+
+        base = {"kind": "kpi", "title": "T", "items": [{"value": "1", "label": "x"}]}
+        without = make_chart.render(dict(base)).size[1]
+        withsrc = make_chart.render({**base, "source": "数据来源：GitHub REST API"}).size[1]
+        self.assertGreater(withsrc, without)
+
+    @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
+    def test_unknown_kind_is_rejected(self) -> None:
+        import make_chart
+
+        with self.assertRaises(SystemExit):
+            make_chart.render({"kind": "pie", "title": "T", "items": []})
+
+    @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
+    def test_missing_items_is_rejected(self) -> None:
+        import make_chart
+
+        for kind in ("bar", "kpi", "timeline"):
+            with self.assertRaises(SystemExit):
+                make_chart.render({"kind": kind, "title": "T", "items": []})
+
+
+class MakeDecoSkinTest(unittest.TestCase):
+    """底子 × 花边两维扩展后的契约。"""
+
+    @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
+    def test_every_skin_builds_exactly_its_assets(self) -> None:
+        import tempfile
+
+        import make_deco
+
+        with tempfile.TemporaryDirectory() as td:
+            for skin, (texture, frame) in make_deco.SKINS.items():
+                made = make_deco.build(texture, frame, "#2E7BF6", Path(td) / skin)
+                self.assertEqual(sorted(made), sorted(make_deco.assets_for(texture, frame)),
+                                 f"皮肤 {skin} 产物与声明不一致")
+
+    @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
+    def test_flags_override_the_skin_preset(self) -> None:
+        import make_deco
+
+        self.assertEqual(make_deco.resolve("full", None, None), ("dot", "single"))
+        self.assertEqual(make_deco.resolve("full", "kraft", None), ("kraft", "single"))
+        self.assertEqual(make_deco.resolve("full", None, "double"), ("dot", "double"))
+        self.assertEqual(make_deco.resolve("paper", "none", "double"), ("none", "double"))
+
+    def test_unknown_texture_or_frame_is_rejected(self) -> None:
+        import make_deco
+
+        with self.assertRaises(SystemExit):
+            make_deco.resolve("full", "marble", None)
+        with self.assertRaises(SystemExit):
+            make_deco.resolve("full", None, "triple")
+
+    @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
+    def test_double_band_is_taller_than_single(self) -> None:
+        """花边带的 CSS 高度必须跟着图走，否则菱形会被压扁。"""
+        import make_deco
+
+        self.assertEqual(make_deco.band_height("double"), make_deco.band_height("single") * 2)
+
+    @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
+    def test_kraft_stays_warm_under_a_cool_accent(self) -> None:
+        """牛皮纸的识别特征是「暖」。主色是冷色时底子不能跟着变灰紫。"""
+        import make_deco
+
+        for cool in ("#5B4BFF", "#24406B", "#1F6F5F"):
+            im = make_deco.make_kraft(make_deco.parse_hex(cool))
+            r, g, b = im.convert("RGB").resize((1, 1)).getpixel((0, 0))
+            self.assertGreater(r, b, f"主色 {cool} 下底子偏冷了（R={r} B={b}）")
+
+    @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
+    def test_grid_and_kraft_tiles_are_seamless(self) -> None:
+        """平铺不无缝就会在接缝处出现半截图案。
+
+        判据：把图横向平铺两张，接缝处（第 n-1 列与第 n 列之间）的色差
+        不应明显大于图内部的相邻列色差。
+        """
+        import make_deco
+        from PIL import Image
+
+        for builder in (make_deco.make_grid, make_deco.make_kraft):
+            tile = builder((0x5B, 0x4B, 0xFF))
+            n = tile.size[0]
+            doubled = Image.new("RGB", (n * 2, n))
+            doubled.paste(tile, (0, 0))
+            doubled.paste(tile, (n, 0))
+
+            def coldiff(x):
+                a = [doubled.getpixel((x, y)) for y in range(n)]
+                b = [doubled.getpixel((x + 1, y)) for y in range(n)]
+                return sum(abs(p - q) for pa, pb in zip(a, b) for p, q in zip(pa, pb)) / n
+
+            seam = coldiff(n - 1)
+            inner = max(coldiff(x) for x in range(1, n - 2))
+            self.assertLessEqual(
+                seam, inner * 2 + 30,
+                f"{builder.__name__} 接缝色差 {seam:.0f} 明显高于内部 {inner:.0f}，平铺会露馅")
+
+
+class WeChatDocsTest(unittest.TestCase):
+    """文档镜像的纯函数部分（不联网）。"""
+
+    def test_page_to_path_maps_urls_into_a_tree(self) -> None:
+        import wechat_docs
+
+        cases = {
+            "https://developers.weixin.qq.com/doc/subscription/api/base/api_getaccesstoken.html":
+                "doc/subscription/api/base/api_getaccesstoken.md",
+            "https://developers.weixin.qq.com/doc/subscription/guide/":
+                "doc/subscription/guide/index.md",
+        }
+        for url, want in cases.items():
+            self.assertEqual(str(wechat_docs.page_to_path(url)), want)
+
+    def test_links_stay_inside_the_subscription_scope(self) -> None:
+        """同一站点还有小程序 / 支付 / 企业微信；跟着爬会平白多出几千页。"""
+        import wechat_docs
+
+        html = """
+        <a href="/doc/subscription/api/base/api_getaccesstoken.html">in</a>
+        <a href="/doc/miniprogram/dev/api.html">out</a>
+        <a href="/doc/oplatform/openApi/api.html">out</a>
+        <a href="https://developers.weixin.qq.com/doc/subscription/guide/dev/start.html">in</a>
+        <a href="https://example.com/doc/subscription/x.html">out</a>
+        """
+        got = wechat_docs._links(html, "")
+        self.assertEqual(got, [
+            "https://developers.weixin.qq.com/doc/subscription/api/base/api_getaccesstoken.html",
+            "https://developers.weixin.qq.com/doc/subscription/guide/dev/start.html",
+        ])
+
+    def test_markdown_extraction_skips_the_navigation_tree(self) -> None:
+        """导航树与正文同层，取「文本最多的 div」会把 170 多项菜单一起抓进来。"""
+        import wechat_docs
+
+        html = """
+        <html><head><title>新增草稿 | 微信公众号文档</title></head><body>
+          <div class="nav"><a>基础接口</a><a>获取接口调用凭据</a><a>自定义菜单</a></div>
+          <div class="page-inner"><div class="content custom">
+            <h1>新增草稿</h1>
+            <p>本接口用于新增草稿。</p>
+            <h2>请求参数</h2>
+            <table><tr><th>参数</th><th>说明</th></tr>
+                   <tr><td>media_id</td><td>素材 id</td></tr></table>
+            <pre>POST /cgi-bin/draft/add</pre>
+          </div></div>
+        </body></html>
+        """
+        md = wechat_docs.html_to_markdown(html, "https://example.com/x.html")
+        self.assertIn("# 新增草稿", md)
+        self.assertIn("POST /cgi-bin/draft/add", md)
+        self.assertIn("| media_id | 素材 id |", md)
+        self.assertNotIn("基础接口", md, "导航树被带进来了")
+        self.assertNotIn("获取接口调用凭据", md)
+
+    def test_search_without_a_mirror_tells_you_how_to_get_one(self) -> None:
+        """没有镜像时要说清下一步，而不是抛一个找不到目录的 traceback。"""
+        with tempfile.TemporaryDirectory(prefix="wxart-docs-") as td:
+            env = dict(os.environ, WXARTICLE_HOME=td, WXARTICLE_NO_REEXEC="1")
+            res = subprocess.run(
+                [sys.executable, str(WXART), "docs", "search", "draft"],
+                cwd=td, env=env, capture_output=True, text=True)
+            self.assertNotEqual(res.returncode, 0)
+            self.assertIn("docs fetch", res.stderr)

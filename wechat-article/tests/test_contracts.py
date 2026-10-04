@@ -257,6 +257,34 @@ class TestComponentGuardSync(unittest.TestCase):
             self.assertIn(gone, wxguard.DEPRECATED, f"{gone} 应仍在废弃表里")
 
 
+    def test_every_grouped_command_exists(self) -> None:
+        """`GROUPS` 只用来打印帮助，写错不会报错——只会让某条命令在帮助里凭空消失。"""
+        sys.path.insert(0, str(SKILL_ROOT / "scripts"))
+        import wxart  # noqa: WPS433
+
+        known = set(wxart.COMMANDS) | set(wxart.ENGINE_SWITCH) | set(wxart.NATIVE)
+        grouped = [c for _, cmds in wxart.GROUPS for c in cmds]
+        self.assertEqual(sorted({c for c in grouped if c not in known}), [],
+                         "GROUPS 里有不存在的命令")
+        # 反向：有 COMMANDS 却分组里没有 → 帮助看不到它
+        missing = sorted(set(wxart.COMMANDS) - set(grouped))
+        self.assertEqual(missing, [], f"这些命令没有进 GROUPS，帮助里看不到: {missing}")
+
+    def test_native_commands_are_dispatchable(self) -> None:
+        """标记为原生（kind='n'）的命令必须在 NATIVE 表里有实现。"""
+        sys.path.insert(0, str(SKILL_ROOT / "scripts"))
+        import wxart  # noqa: WPS433
+
+        for name, spec in wxart.COMMANDS.items():
+            if spec[0] == "n":
+                self.assertIn(name, wxart.NATIVE, f"{name} 标了原生却没有实现")
+
+    def test_wechat_docs_mirror_is_not_shipped_in_the_repo(self) -> None:
+        """腾讯文档的镜像不能进版本库（版权）；镜像落在状态目录，随用随抓。"""
+        offenders = [p for p in SKILL_ROOT.rglob("*wechat-docs*")]
+        self.assertEqual(offenders, [], f"仓库里出现了文档镜像: {offenders}")
+
+
 class TestNoUpstreamLeakage(unittest.TestCase):
     """交付文档里不应残留上游品牌与迁移叙事。
 

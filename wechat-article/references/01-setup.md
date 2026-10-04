@@ -205,6 +205,23 @@ wxart migrate             # 从 ~/.wewrite 复制到 ~/.wxarticle（只复制，
 **退出码语义要分清**：`wxart image` 的退出码 1 是硬错误（含**跑错目录**，找不到配置文件），
 退出码 2 才是「图片模型未配置」。不要把 1 当成 2 去降级。
 
+## 8.5 可选：把官方文档抓一份到本地
+
+接口的字段上限、错误码这类规定，以前靠探针一条条试——试出来的只覆盖试过的那些。
+抓一份官方文档到本地，就能先查规定再决定要不要探：
+
+```bash
+wxart docs fetch                    # 抓 191 页到状态目录，约 1 分钟（可反复跑续抓）
+wxart docs search "2万字符"          # 正则检索
+wxart docs show subscription/api/draftbox/draftmanage/api_draft_add
+```
+
+- **装不上也无所谓**：仓库里的 [22-wechat-api-reference.md](22-wechat-api-reference.md)
+  是我们自己写的摘要，覆盖本流水线真正依赖的那几条规定，离线可用。
+- **镜像不进版本库**：文档内容版权归腾讯，所以它落在 `$WXARTICLE_HOME/wechat-docs/`，
+  由使用者本地抓取。仓库里只有抓取脚本。
+- 抓取需要能访问 `developers.weixin.qq.com`；抓不到时只影响离线检索，不影响写作与发布。
+
 ## 9. 排障顺序
 
 1. `wxart doctor` —— 依赖 / 配置 / 凭证 / 发布方式。

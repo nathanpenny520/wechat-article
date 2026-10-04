@@ -81,16 +81,21 @@ def extract_body(text: str) -> str:
     return text
 
 
-def _page(fragment: str, width: int, extra: str = "") -> str:
+def _page(fragment: str, width: int, extra: str = "", base_href: str = "") -> str:
     """外层容器**必须 margin:0**。
 
     Chrome 的 `--window-size` 只决定截图裁切范围，不决定布局视口（实测布局视口会
     停在 500px）。容器若写成 `margin:0 auto`，在 500px 视口里就被推到中间，
     截出来的 375px 只剩左半边——看起来像「正文被右边切掉了」，其实是截图裁错了。
     靠左摆放，裁切区就与容器严格重合。
+
+    `base_href` 是原产物的所在目录：正文里的 `<img src="imgs/01.png">` 是**相对路径**，
+    而这里把片段搬进了临时目录，不补 `<base>` 就会整篇图裂——带配图的稿子全中招。
     """
+    base = f"<base href='{base_href}'>" if base_href else ""
     return (
-        "<!doctype html><html><head><meta charset='utf-8'><style>\n"
+        "<!doctype html><html><head><meta charset='utf-8'>"
+        f"{base}<style>\n"
         "html,body{margin:0;padding:0;background:#ffffff;}\n"
         f"#wxshot-wrap{{width:{width}px;margin:0;}}\n"
         "</style></head><body>"
@@ -116,10 +121,11 @@ def _run(browser: str, args: list[str], timeout: int = 120) -> str:
     return proc.stdout
 
 
-def measure(browser: str, fragment: str, width: int, work: Path) -> tuple[int, int, str]:
+def measure(browser: str, fragment: str, width: int, work: Path,
+            base_href: str = "") -> tuple[int, int, str]:
     """返回 (内容高度, 横向溢出元素数, 溢出摘要)。"""
     probe = work / "_measure.html"
-    probe.write_text(_page(fragment, width, _MEASURE_JS), encoding="utf-8")
+    probe.write_text(_page(fragment, width, _MEASURE_JS, base_href), encoding="utf-8")
     dom = _run(browser, [f"--window-size={width},1400", "--virtual-time-budget=6000",
                          "--dump-dom", probe.as_uri()])
     m = re.search(r"<pre id=['\"]WXSHOT['\"]>(.*?)</pre>", dom, re.S)
@@ -135,9 +141,9 @@ def measure(browser: str, fragment: str, width: int, work: Path) -> tuple[int, i
 
 
 def shoot(browser: str, fragment: str, out: Path, width: int, height: int,
-          scale: float, work: Path) -> tuple[int, int]:
+          scale: float, work: Path, base_href: str = "") -> tuple[int, int]:
     page = work / "_shot.html"
-    page.write_text(_page(fragment, width), encoding="utf-8")
+    page.write_text(_page(fragment, width, base_href=base_href), encoding="utf-8")
     args = [f"--window-size={width},{max(height, 1)}",
             "--virtual-time-budget=6000", f"--screenshot={out}", page.as_uri()]
     if scale != 1:
@@ -257,7 +263,9 @@ def main(argv: list[str] | None = None) -> int:
         work = Path(td)
         for i, path in enumerate(paths):
             fragment = extract_body(path.read_text(encoding="utf-8"))
-            height, over, detail = measure(browser, fragment, args.width, work)
+            # 正文图是相对路径，必须让页面以产物目录为基准解析，否则整篇图裂
+            base_href = path.resolve().parent.as_uri() + "/"
+            height, over, detail = measure(browser, fragment, args.width, work, base_href)
             if height <= 0:
                 height = 3000
             # 多份输入时文件名带上序号。只按 `path.stem` 命名会撞车——
@@ -270,7 +278,7 @@ def main(argv: list[str] | None = None) -> int:
 
             # 裁剪靠「先按整篇高度截、再切」实现：Chrome 的 --screenshot 没有 offset 参数。
             tmp = work / f"full-{i}.png"
-            shoot(browser, fragment, tmp, args.width, height + 40, args.scale, work)
+            shoot(browser, fragment, tmp, args.width, height + 40, args.scale, work, base_href)
             if crop or y1 < height:
                 try:
                     from PIL import Image

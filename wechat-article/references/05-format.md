@@ -348,11 +348,32 @@ wxart deco article.html -o preview.html  --skin full --no-upload    # 本地看�
 wxart deco article.html -o out.html --skin paper --accent "#2E7BF6"
 ```
 
-| 皮肤 | 做什么 |
+装饰是两个**正交**的维度，不是一串并列的皮肤名——底子（纸）和花边（框）是两件独立的事：
+
+| 维度 | 取值 | 观感 |
+|---|---|---|
+| `--texture` 底子 | `dot` / `grid` / `kraft` / `none` | 轻点阵纸 / 方格纸 / 牛皮纸 / 不铺底 |
+| `--frame` 花边 | `none` / `single` / `double` | 无框 / 单色带（细线 + 菱形）/ 双色带（粗细两条线 + 大小方块） |
+
+`--skin` 只是两维的常用组合，`--texture` / `--frame` 可以单独覆盖它：
+
+| 皮肤 | 底子 × 花边 |
 |---|---|
-| `paper` | 整篇铺无缝纸纹（`repeat`，24px 周期），另给一层极浅底色兜底 |
-| `frame` | 圆角描边 + 上下对称的花边带（带子在正中拉伸、不重复，所以不会出现平铺接缝） |
-| `full` | 两者合一，默认。（花边框同时承载纸纹，正文里不再嵌第二层背景） |
+| `paper` | `dot` × `none` |
+| `grid` | `grid` × `none` |
+| `kraft` | `kraft` × `none` |
+| `frame` | `none` × `single` |
+| `double` | `none` × `double` |
+| `full`（默认） | `dot` × `single` |
+| `graph` | `grid` × `single` |
+| `craft` | `kraft` × `double` |
+
+怎么选：**底子与花边都要跟主题性格一致**。冷色主色（靛蓝、石青）配 `grid` 干净利落；
+暖色主色（赤红、驼褐）配 `kraft` 更像纸；`double` 比 `single` 重一档，
+配 `kraft` / `grid` 这类本身明显的底子才压得住。`dot` + `single` 是最不容易出错的一档。
+
+`kraft` 的底色**以牛皮纸本色（暖黄褐）为主，主色只掺 8%**——牛皮纸的识别特征是「暖」，
+早先按主色掺 55% 做，遇到冷色主色整张底就变成灰紫，那是灰纸不是牛皮纸。
 
 要点：
 
