@@ -109,7 +109,7 @@ linear-gradient 渐变色条     transform:rotate
 
 前三批测的是「能不能用」，这一批专门测**「class 型样式框架能不能用」**——
 `<style>` / `class` / `::before` / `@media` 这四项此前只在粘贴路径下被验证过，API 路径是空白。
-原始 payload 与回读件见 [`docs/probes/2026-10-04-api-fidelity/`](../../docs/probes/2026-10-04-api-fidelity/README.md)。
+测法：一稿推上去回读，再在手机微信上逐项看图（回读只证明「HTML 活着」）。
 
 | 构造 | 回读（draft/get） | 手机渲染（同日核对） |
 |---|---|---|
@@ -126,8 +126,8 @@ linear-gradient 渐变色条     transform:rotate
 | `<img>`（后加上传的图床图） | `src`→`data-src`、`/0`→`/640` | ✅ 正常显示 |
 
 **真机那一列才是这一批最有价值的产出**：`<div>` 与 `nodeleaf` 两行都是「回读全绿、手机上出问题」，
-回读、`wxart preview`、桌面浏览器**三个都测不出来**（第 7 节）。构造与逐条判据见
-[探针目录的 reallive-results.md](../../docs/probes/2026-10-04-api-fidelity/reallive-results.md)。
+回读、`wxart preview`、桌面浏览器**三个都测不出来**（第 7 节）。
+判据是像素：同稿里紫色 `<div>` 的彩色像素数为 0，而 `<section>`+`<p>` 的红字有 6,084。
 
 **口径更正（已同步到第 1 节、第 7 节、第 15 节）**：`class` 不是被剥离而是被保留（但无用）；
 `<div>` 不是「被编辑器改写」而是「**客户端不认它的样式**」——两条旧说法的结论方向都没错，
@@ -142,7 +142,7 @@ linear-gradient 渐变色条     transform:rotate
 ### 第五批探针（2026-10-04 · 暗色算法与嵌套边界）
 
 第四批测「class 型框架能不能用」，这一批测两件只有官方条文、没有实测的事。
-原始 payload 与回读件见 [`docs/probes/2026-10-04-darkmode-nesting/`](../../docs/probes/2026-10-04-darkmode-nesting/README.md)。
+测法：一稿里同时装暗色与嵌套两组构造，回读看删没删，手机切深色看算法怎么转。
 
 | 构造 | 回读结果 | 含义 |
 |---|---|---|
@@ -266,8 +266,7 @@ Didot 可做高对比衬线 masthead。**含数字的字体名必须加引号**�
 | **`nodeleaf` 容器里的块级子元素** | 同一稿：`<section nodeleaf>` 里放了一个 `<p>`，回读里在、**手机上整段消失**。官方规范说该容器只允许「单个图片 / 视频 / 官方组件」——客户端真的照做了 |
 
 「HTML 里活着 ≠ 渲得出来」。第一次证实是中文字体，第二次是 `filter` / `float`，
-第三次是 `<div>` 与 `nodeleaf`（2026-10-04 真机，回读件与截图对照，见
-[探针目录](../../docs/probes/2026-10-04-api-fidelity/reallive-results.md)）。
+第三次是 `<div>` 与 `nodeleaf`（2026-10-04 真机，回读件与手机截图逐行对照）。
 
 **这一类只能靠真机发现**：`draft/get` 回读、`wxart preview`、桌面浏览器三者都会把
 `<div>` 的紫色和那个 `<p>` 正常画出来。**回读通过的构造，仍然可能整段不上屏。**
@@ -597,8 +596,7 @@ python3 scripts/official_check.py article.html --strict  # 缺依赖时也报错
 三条必须知道的：
 
 1. **它不阻断流水线。** 官方那套要 node + npm + 一个 Chromium，本 skill 运行时绝不背这个包袱：
-   脚本「有就跑、没有就明确 SKIP」，缺依赖时退出码仍是 0。装法见它的 `--help` 与
-   [`docs/probes/2026-10-04-api-fidelity/README.md`](../../docs/probes/2026-10-04-api-fidelity/README.md)。
+   脚本「有就跑、没有就明确 SKIP」，缺依赖时退出码仍是 0。取仓与装依赖的命令见它的 `--help`。
 2. **必须喂 body-only HTML。** 整页输入会把预览包装的 `<head><style>` 也算进去，报出假 `width`
    违规；`official_check.py` 已自动抽 `<body>` 并去掉 `<style>`/`<script>`，与 `wxart validate` 同口径。
 3. **`font-family` 规则在 CLI 路径下实测不触发。** 用 `Georgia` / `Didot` / 等宽三种构造验证均无输出，
