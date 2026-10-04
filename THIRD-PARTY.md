@@ -27,7 +27,8 @@ git clone https://github.com/aiworkskills/wechat-article-skills.git reference/we
    alt 含「封面」或 `cover` 开头的图片不进正文（与另一套引擎行为对齐，避免正文出现不会被上传的坏图）。
 4. **新增模块**：`wechat-article/scripts/wxart.py`（统一 CLI）、`wxguard.py`（引擎容器栅栏与产物门禁）、
    `make_cover.py`（无生图模型时的本地封面合成）、`wxshot.py`（排版产物截图核对观感）、
-   `redraft.py`（走 `draft/update` 原地更新草稿）为本项目原创。
+   `redraft.py`（走 `draft/update` 原地更新草稿）、`make_deco.py` + `wxdeco.py`
+   （装饰底图生成与图床换链，做 `background-image` 的纸纹/花边）为本项目原创。
 5. **新增版式组件**：`aws/aws-wechat-article-formatting/references/components/aside.yaml`（旁注块）
    为本项目新增，上游没有这个组件。**未修改任何既有组件或主题 YAML。**
    命名选出 `aside` 而非复用 wx 引擎的 `callout`，是因为两者的方括号参数语义不同
@@ -39,4 +40,4 @@ git clone https://github.com/aiworkskills/wechat-article-skills.git reference/we
 ## 本项目原创部分的许可
 
 除上表内嵌的第三方代码外，本仓库的文档、提示词层、`wxart` / `wxguard` / `wxenv` /
-`make_cover` / `wxshot` / `redraft` 等原创代码按 [LICENSE](LICENSE) 授权。
+`make_cover` / `wxshot` / `redraft` / `make_deco` / `wxdeco` 等原创代码按 [LICENSE](LICENSE) 授权。

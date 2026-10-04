@@ -90,6 +90,7 @@ COMMANDS: dict[str, tuple[str, str, str]] = {
     "cover": ("n", "", "没有生图模型时，本地合成「纯色大字」封面（确定性，零 API）"),
     "preview-page": ("n", "", "把排版产物放进 375px 手机宽度预览页，并排对比多个主题"),
     "shot": ("n", "", "排版产物截成手机宽度 PNG（核对观感，含多主题对照图）"),
+    "deco": ("n", "", "给正文加纸纹底 / 花边框（底图上传图床再写进 background-image）"),
     "redraft": ("n", "", "原地更新草稿箱里的一条草稿（换版式不新建）"),
     # —— 上游自检 ——
     "validate-env": ("a", "aws/aws-wechat-article-main/scripts/validate_env.py", "aws 侧配置校验"),
@@ -99,7 +100,7 @@ GROUPS: list[tuple[str, list[str]]] = [
     ("环境与工作区", ["doctor", "init", "env", "home", "migrate"]),
     ("选题", ["hotspots", "search-articles", "seo"]),
     ("写作", ["draft", "llm-write", "score", "content-eval", "sources"]),
-    ("排版", ["format", "preview", "preview-page", "shot", "themes", "gallery", "validate"]),
+    ("排版", ["format", "preview", "preview-page", "shot", "deco", "themes", "gallery", "validate"]),
     ("配图", ["image", "cover", "image-post", "image-prepare", "image-check"]),
     ("发布", ["publish", "redraft", "article-init", "getdraft"]),
     ("学习飞轮", ["learn-edits", "learn-theme", "exemplar", "fetch-article", "build-playbook"]),
@@ -593,6 +594,13 @@ def cmd_shot(args: list[str]) -> int:
     return wxshot.main(list(args))
 
 
+def cmd_deco(args: list[str]) -> int:
+    """给正文加纸纹底 / 花边框（底图先传图床，再写进 background-image）。"""
+    import wxdeco
+
+    return wxdeco.main(list(args))
+
+
 def cmd_redraft(args: list[str]) -> int:
     """原地更新草稿箱里的一条草稿，避免「换模版＝多一条草稿」。"""
     import redraft
@@ -649,6 +657,7 @@ NATIVE = {
     "cover": cmd_cover,
     "preview-page": cmd_preview_page,
     "shot": cmd_shot,
+    "deco": cmd_deco,
     "redraft": cmd_redraft,
 }
 
@@ -657,7 +666,7 @@ NATIVE = {
 #: 原生命令在 `maybe_reexec_into_venv()` **之前**分发，这是有意的：`env` 的职责就是
 #: 如实报告当前解释器缺哪些依赖，先切 venv 会让它永远报「依赖齐全」。所以只给确实
 #: 需要依赖的命令单独补一次切换，而不是整体提前。
-_NATIVE_NEEDS_DEPS = {"cover", "shot", "redraft"}
+_NATIVE_NEEDS_DEPS = {"cover", "shot", "deco", "redraft"}
 
 
 # ------------------------------------------------------------------ format 的引擎栅栏

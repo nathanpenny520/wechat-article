@@ -268,6 +268,88 @@ class CliTestCase(CliHarness, unittest.TestCase):
         self.assertEqual(res.returncode, 1)
         self.assertIn("封面", res.stderr)
 
+    # ------------------------------------------------------------ 装饰底图（deco）
+
+    _ACCENT_HTML = (
+        '<section style="color:#111111; background:#F4F5F7;">'
+        + "".join(f'<p style="color:#2E7BF6;">第 {i} 段</p>' for i in range(6))
+        + '<p style="color:#111111;">中性色出现更多但不该被选中</p></section>'
+    )
+
+    @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
+    def test_deco_detects_the_theme_accent_from_the_product(self) -> None:
+        """装饰色必须跟主题一致，否则会变成「第二套配色」。
+
+        产物里出现最多的是灰、近黑这类中性色，它们不是主色，必须被排除。
+        """
+        md = self._write("acc.md", "# 标题\n\n正文一段。\n")
+        html = self.workspace / "acc.html"
+        self.assertEqual(self.run_cli("format", str(md), "-o", str(html)).returncode, 0)
+        html.write_text(self._ACCENT_HTML, encoding="utf-8")
+        out = self.workspace / "acc-deco.html"
+        res = self.run_cli("deco", str(html), "-o", str(out), "--no-upload", "--json")
+        self.assertEqual(res.returncode, 0, res.stderr)
+        report = json.loads(res.stdout)
+        self.assertEqual(report["accent"], "#2E7BF6")
+        self.assertIn("#2E7BF6", report["accent_source"])
+
+    @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
+    def test_deco_accepts_an_explicit_accent(self) -> None:
+        html = self._write("exp.html", self._ACCENT_HTML)
+        res = self.run_cli("deco", str(html), "-o", str(self.workspace / "exp-d.html"),
+                           "--no-upload", "--accent", "#0F4C81", "--json")
+        self.assertEqual(res.returncode, 0, res.stderr)
+        report = json.loads(res.stdout)
+        self.assertEqual(report["accent"], "#0F4C81")
+        self.assertIn("命令行指定", report["accent_source"])
+
+    @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
+    def test_deco_writes_real_background_image_declarations(self) -> None:
+        """`--no-upload` 的产物要能被本地渲染：底图内联、写法与线上完全一致。"""
+        html = self._write("d1.html", self._ACCENT_HTML)
+        out = self.workspace / "d1-out.html"
+        res = self.run_cli("deco", str(html), "-o", str(out), "--skin", "full", "--no-upload")
+        self.assertEqual(res.returncode, 0, res.stderr)
+        body = out.read_text(encoding="utf-8")
+        self.assertIn("data:image/png;base64,", body, "本地预览必须内联底图")
+        self.assertIn("background-image:url(", body)
+        self.assertIn("background-repeat:repeat", body, "纸纹必须可平铺")
+        self.assertIn("border-radius:20px", body, "花边框的四角靠 border-radius")
+        self.assertIn("background-position:center center", body, "花边带要居中不重复")
+        # 关键：不能出现定位声明 —— 微信把 position 整条删掉，
+        # 靠它定位的角标会全部堆到正文最前面。注意 background-position 不在其列。
+        for bad in ("position:absolute", "position:fixed", "position:relative", "position: sticky"):
+            self.assertNotIn(bad, body)
+
+    @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
+    def test_deco_paper_skin_only_adds_texture(self) -> None:
+        html = self._write("d2.html", self._ACCENT_HTML)
+        out = self.workspace / "d2-out.html"
+        res = self.run_cli("deco", str(html), "-o", str(out), "--skin", "paper", "--no-upload")
+        self.assertEqual(res.returncode, 0, res.stderr)
+        body = out.read_text(encoding="utf-8")
+        self.assertIn("background-repeat:repeat", body)
+        self.assertNotIn("border-radius:20px", body, "paper 皮肤不加花边框")
+        self.assertNotIn("background-position:center center", body, "paper 皮肤没有花边带")
+
+    @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
+    def test_deco_refuses_to_silently_inline_when_publishing(self) -> None:
+        """要进草稿箱就不能退化成 data: URI——微信不认，图会全丢。
+
+        隔离工作区里没有微信凭证，所以必须**失败**，而不是悄悄内联一个发不出去的产物。
+        """
+        html = self._write("d3.html", self._ACCENT_HTML)
+        out = self.workspace / "d3-out.html"
+        res = self.run_cli("deco", str(html), "-o", str(out))
+        self.assertNotEqual(res.returncode, 0, "没有凭证时不该成功")
+        self.assertFalse(out.exists(), "失败时不该留下一个内联底图的半成品")
+        self.assertNotIn("data:image", res.stdout + res.stderr)
+
+    def test_deco_reports_missing_input(self) -> None:
+        res = self.run_cli("deco", str(self.workspace / "nope.html"), "-o", str(self.workspace / "o.html"))
+        self.assertEqual(res.returncode, 2)
+        self.assertIn("文件不存在", res.stderr)
+
     # ------------------------------------------------------------ 引擎分发
 
     @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
@@ -656,3 +738,75 @@ def _iter_findings(payload: object):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class MakeDecoTest(unittest.TestCase):
+    """底图生成器的确定性契约。
+
+    这些不是「画得好不好看」的测试——观感靠 `wxart shot` 看。这里测的是**再生成一次
+    必须一模一样**，以及平铺/翻转这两个会被 background 参数依赖的性质。
+    """
+
+    @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
+    def test_assets_are_deterministic(self) -> None:
+        """同一主色两次生成必须逐字节一致——目录名按指纹去重，不一致会白白多传图。"""
+        import io
+
+        import make_deco
+
+        accent = (0x2E, 0x7B, 0xF6)
+        cases = {
+            "tile": lambda: make_deco.make_tile(accent),
+            "band": lambda: make_deco.make_band(accent),
+            "band_flip": lambda: make_deco.make_band(accent, flip=True),
+        }
+        for name, make in cases.items():
+            a, b = io.BytesIO(), io.BytesIO()
+            make().save(a, "PNG")
+            make().save(b, "PNG")
+            self.assertEqual(a.getvalue(), b.getvalue(), f"{name} 两次生成不一致")
+
+    @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
+    def test_tile_grid_period_divides_the_canvas(self) -> None:
+        """平铺的接缝：点阵周期必须整除画布边长，否则接缝处会出现半截点。"""
+        import make_deco
+
+        im = make_deco.make_tile((0x2E, 0x7B, 0xF6))
+        n = im.size[0]
+        self.assertEqual(n % make_deco.TILE_CSS, 0)
+        # 点是画在 (0,0) 与正中的，两者颜色相同 → 平铺后是规整网格
+        self.assertEqual(im.getpixel((0, 0)), im.getpixel((n // 2, n // 2)))
+        self.assertNotEqual(im.getpixel((0, 0)), im.getpixel((n // 4, n // 4)),
+                            "点与底必须有色差，否则平铺看不见")
+
+    @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
+    def test_band_flip_is_the_vertical_mirror(self) -> None:
+        import make_deco
+        from PIL import Image
+
+        accent = (0xC0, 0x39, 0x2B)
+        base = make_deco.make_band(accent)
+        flipped = make_deco.make_band(accent, flip=True)
+        self.assertEqual(flipped.tobytes(),
+                         base.transpose(Image.FLIP_TOP_BOTTOM).tobytes())
+
+    @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
+    def test_skins_reference_only_existing_assets(self) -> None:
+        import make_deco
+
+        built = set()
+        for name in ("tile", "band", "band_flip"):
+            built.add(name)
+        for skin, assets in make_deco.SKINS.items():
+            missing = [a for a in assets if a not in built]
+            self.assertEqual(missing, [], f"皮肤 {skin} 引用了不存在的底图 {missing}")
+
+    @unittest.skipUnless(HAVE_DEPS, "缺少运行依赖")
+    def test_no_skin_uses_positioning(self) -> None:
+        """四角定位需要 position:absolute，而微信把 position 整条删掉。
+
+        删掉之后角标会依次堆在正文最前面，比没有装饰更糟——所以干脆不生成角标。
+        """
+        import make_deco
+
+        self.assertFalse(hasattr(make_deco, "make_corner"))

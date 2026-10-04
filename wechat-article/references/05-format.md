@@ -333,7 +333,39 @@ wxart shot a.html b.html -o 对比.png --sheet-height 1500          # 每张单�
 
 **「草稿创建成功」不等于排版完成。** 正文仍有 `placeholder` 时，状态必须报「草稿已提交，正文配图未完成」。
 
-## 7. 排障
+## 7. 加背景装饰：`wxart deco`（秀米那种底）
+
+模版本身给的是**版面语法**（字体、间距、编号、卡片），版面之外还有一层**页面质感**：纸纹底、花色边框。这一层在微信里只能靠 `background-image` 做，而它的规矩很硬（实测见 [20-wechat-html-constraints.md](20-wechat-html-constraints.md) 第 3 节）：
+
+- `background-image` 指向**外链 → 整条被删**，`<section>` 还在、声明没了；
+- 指向**微信自己的图床链接（`mmbiz.qpic.cn`）→ 连同 `background-repeat` / `background-size` / `background-position` 一起完整保留**。
+
+所以链路必须绕这一圈：**本地画图 → 传进图床换链接 → 写进 `background-image`**。`wxart deco` 把后两步接起来。
+
+```bash
+wxart deco article.html -o article-deco.html --skin full            # 纸纹 + 花边框（要上传）
+wxart deco article.html -o preview.html  --skin full --no-upload    # 本地看效果，不联网
+wxart deco article.html -o out.html --skin paper --accent "#2E7BF6"
+```
+
+| 皮肤 | 做什么 |
+|---|---|
+| `paper` | 整篇铺无缝纸纹（`repeat`，24px 周期），另给一层极浅底色兜底 |
+| `frame` | 圆角描边 + 上下对称的花边带（带子在正中拉伸、不重复，所以不会出现平铺接缝） |
+| `full` | 两者合一，默认。（花边框同时承载纸纹，正文里不再嵌第二层背景） |
+
+要点：
+
+- **主色自动从产物里认**。装饰色跟主题不一致，「好看的底」就变成「第二套配色」。产物里已经渲进了模版的全部色值，取其中出现最多的**彩色**即可——判中性色**只看饱和度**（近白 `#F7EEEE` 饱和度 0.04、近黑 `#111111` 为 0，都会被滤掉）。`--accent` 可显式覆盖。
+- **底图只取决于「皮肤 + 主色」，换链结果进缓存**（状态目录的 `deco-cache.json`）。同一套配色的多篇文章复用同一条图床链接，不重复上传。
+- **`--no-upload` 只用于本地预览**：底图内联成 `data:` URI，微信不认。要进草稿箱必须去掉它；没有凭证时命令会**失败**，不会悄悄交给一个发不出去的产物。
+- **装饰一律加在外层容器上，不动正文内部结构**。内部标题被 `h2-deco` 包在 `display:flex` 行里，事后插东西会插进 flex 行内部把版式搞坏。外层容器是稳定锚点：**不猜结构，只包一层**。
+- **没有角标**。四角装饰需要 `position:absolute`，而微信把 `position` 整条删掉——删掉后四张角标会依次堆在正文最前面，比不装饰更糟。四角用 CSS `border-radius`。
+- 产物过同一个微信兼容门禁（退出码 5 为未通过，`--no-check` 跳过）。
+
+**装饰不能救版式。** 纸纹和花边是「页面质感」，标题层级、段距、卡片节奏仍然是模版的职责——先把模版选对（第 3 节），再考虑加不加底。
+
+## 8. 排障
 
 按顺序查，不要跳：`wxart doctor`（依赖与配置，退出码 0 才继续）→ `wxart env`（打印实际解析到的路径与来源，确认配置读的是哪一份）→ `{run_dir}/format.log`（模版从哪个文件加载、配色有没有应用、端点/字体告警——**关键信息只在日志里**）→ 再按现象定位：
 

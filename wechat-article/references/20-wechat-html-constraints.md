@@ -75,6 +75,26 @@ linear-gradient 渐变色条     transform:rotate
 `background-image`——直接用外部图片地址一定失败。两个引擎目前都**不产出** `background-image`，
 版式全靠内联 CSS 与 SVG；这是与秀米之间唯一的真实差距，不是「没做排版」。
 
+### 第三批探针（2026-10-04 · 换成 mmbiz 链接后的背景能力）
+
+上一条只说「外链被删」，没说「换成图床链接会怎样」。做成 `wxart deco` 之前先把这一步测掉，
+结论是**全部保留**：
+
+| 写法 | 结果 |
+|---|---|
+| `background-image:url(https://mmbiz.qpic.cn/…)` | 保留 |
+| `background-repeat:repeat` / `repeat-x` / `no-repeat` | 保留 |
+| `background-size:40px 40px` / `100% 100%` / `auto 24px` | 保留 |
+| `background-position:center bottom` | 保留 |
+| `background:url(…) repeat #F7F7F7`（简写带 url） | 保留 |
+
+回读时微信会把图床链接从 `http://` 改成 `https://`、尾部 `/0` 改成 `/640?from=appmsg`，
+与 `<img src>` 的处理一致，不影响渲染。
+
+所以「花纹底 / 纸纹 / 花边」是可达的，链路是：
+**本地位图 → `media/uploadimg` 换 `mmbiz` 链接 → 写进 `background-image`**。
+`wxart deco` 就是这条链路的实现（用法见 [05-format.md](05-format.md) 第 7 节）。
+
 ## 4. 中文字体指定了也没用
 
 **手机微信里，`font-family` 对中文完全无效。**（2026-09-06 探针稿，iPhone 微信实测）
